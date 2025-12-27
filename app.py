@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import zipfile
 import io
+import time
 
 # Настройка страницы
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
@@ -36,7 +37,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Инициализация переменных в сессии
+# Инициализация переменных
 if 'data' not in st.session_state:
     st.session_state.data = None
     st.session_state.current_item = None
@@ -44,7 +45,7 @@ if 'data' not in st.session_state:
     st.session_state.total = 0
     st.session_state.show_answer = False
     st.session_state.hint_letters = 0
-    st.session_state.widget_key = 0 # Для безопасной очистки поля ввода
+    st.session_state.widget_key = 0
 
 def load_data(table_file, zip_file):
     try:
@@ -69,7 +70,6 @@ def load_data(table_file, zip_file):
         for _, row in df.iterrows():
             curr_id = row['ID']
             if curr_id in photos:
-                # Создаем полную строку ответа: "Nimi Latina"
                 full_name = f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip()
                 combined.append({
                     'id': curr_id,
@@ -78,7 +78,7 @@ def load_data(table_file, zip_file):
                 })
         return combined
     except Exception as e:
-        st.error(f"Virhe tiedostojen luvussa: {e}")
+        st.error(f"Virhe: {e}")
         return None
 
 def next_question():
@@ -86,7 +86,7 @@ def next_question():
         st.session_state.current_item = random.choice(st.session_state.data)
         st.session_state.show_answer = False
         st.session_state.hint_letters = 0
-        st.session_state.widget_key += 1 # Меняем ключ, чтобы поле ввода очистилось само
+        st.session_state.widget_key += 1
 
 # --- SIVUPALKKI ---
 with st.sidebar:
@@ -113,26 +113,29 @@ if st.session_state.current_item:
     st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    # Вывод подсказки НАД полем ввода
+    # ПОДСКАЗКА С УМНЫМ МНОГОТОЧИЕМ
     if st.session_state.hint_letters > 0:
         hint_text = item['full_answer'][:st.session_state.hint_letters]
-        st.markdown(f"<div class='hint-box'>Vihje: {hint_text}...</div>", unsafe_allow_html=True)
+        # Если открыты не все буквы, добавляем многоточие
+        suffix = "..." if st.session_state.hint_letters < len(item['full_answer']) else ""
+        st.markdown(f"<div class='hint-box'>Vihje: {hint_text}{suffix}</div>", unsafe_allow_html=True)
 
-    # Поле ввода (очищается через смену key)
     ans = st.text_input("Kirjoita suomalainen ja latinankielinen nimi:", key=f"input_{st.session_state.widget_key}").strip()
     
     col1, col2, col3 = st.columns(3)
     
     if col1.button("Tarkista"):
-        st.session_state.total += 1
-        # Проверка без учета регистра
         if ans.lower() == item['full_answer'].lower():
             st.session_state.score += 1
-            st.balloons()
+            st.session_state.total += 1
+            st.balloons() # ЗАПУСКАЕМ ШАРИКИ
+            st.success("Oikein!") 
+            time.sleep(1.5) # Даем 1.5 секунды полюбоваться шариками
             next_question()
             st.rerun()
         else:
-            st.error("Väärin! Yritä uudelleen tai katso vihje.")
+            st.session_state.total += 1
+            st.error("Väärin! Yritä uudelleen tai katсо vihje.")
 
     if col2.button("Vihje"):
         if st.session_state.hint_letters < len(item['full_answer']):
