@@ -4,6 +4,7 @@ import random
 import zipfile
 import io
 
+# Настройка страницы
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
 # Дизайн
@@ -17,13 +18,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# Инициализация
 if 'data' not in st.session_state:
     st.session_state.data = None
     st.session_state.current_item = None
     st.session_state.score = 0
     st.session_state.total = 0
     st.session_state.show_answer = False
-    st.session_state.hint_text = "" # Здесь храним текущую подсказку (правильное начало)
+    # Это секретный механизм для управления текстом в поле ввода
+    if 'hint_val' not in st.session_state:
+        st.session_state.hint_val = ""
 
 def load_data(table_file, zip_file):
     try:
@@ -62,7 +66,7 @@ def next_question():
     if st.session_state.data:
         st.session_state.current_item = random.choice(st.session_state.data)
         st.session_state.show_answer = False
-        st.session_state.hint_text = ""
+        st.session_state.hint_val = ""
 
 # --- ИНТЕРФЕЙС ---
 with st.sidebar:
@@ -77,6 +81,7 @@ with st.sidebar:
                 st.session_state.score = 0
                 st.session_state.total = 0
                 next_question()
+                st.rerun()
 
 st.title("🌿 Kasvioppi: Treenaaja")
 
@@ -85,27 +90,27 @@ if st.session_state.current_item:
     st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    # Поле ввода. Мы передаем в него значение из hint_text
-    # Если hint_text изменится (нажата подсказка), поле обновится
-    ans = st.text_input("Mikä kasvi tämä on?", value=st.session_state.hint_text, key="ans_input").strip()
+    # Поле ввода привязано к hint_val через value
+    user_ans = st.text_input("Mikä kasvi tämä on?", value=st.session_state.hint_val)
     
     col1, col2, col3 = st.columns(3)
     
+    # Кнопка ПРОВЕРИТЬ
     if col1.button("Tarkista"):
         st.session_state.total += 1
-        if ans.lower() == item['name'].lower():
+        if user_ans.strip().lower() == item['name'].lower():
             st.session_state.score += 1
             st.balloons()
             next_question()
             st.rerun()
         else:
-            st.error("Väärin! Yritä uudelleen tai käytä vihjettä.")
+            st.error("Väärin! Yritä uudelleen.")
 
+    # Кнопка ПОДСКАЗКА
     if col2.button("Vihje"):
         correct_name = item['name']
-        current_input = ans
+        current_input = user_ans.strip()
         
-        # Логика определения правильной части
         match_len = 0
         for i in range(min(len(current_input), len(correct_name))):
             if current_input[i].lower() == correct_name[i].lower():
@@ -113,11 +118,11 @@ if st.session_state.current_item:
             else:
                 break
         
-        # Обрезаем до правильного и добавляем ОДНУ букву
-        new_hint = correct_name[:match_len + 1]
-        st.session_state.hint_text = new_hint
+        # Обновляем значение и ПЕРЕЗАГРУЖАЕМ, чтобы оно появилось в поле
+        st.session_state.hint_val = correct_name[:match_len + 1]
         st.rerun()
 
+    # Кнопка СДАТЬСЯ
     if col3.button("Luovuta"):
         st.session_state.show_answer = True
 
