@@ -8,67 +8,53 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- ФИНАЛЬНЫЙ CSS ПОСЛЕ ПОБЕДЫ НАД GRID ---
+# --- СТИЛИ ДЛЯ КОМПАКТНОСТИ И ЦЕНТРИРОВАНИЯ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Базовый контейнер */
+    /* Главный контейнер: центрируем всё на компе */
     .main .block-container {
-        max-width: 500px !important;
+        max-width: 550px !important;
         padding: 1.5rem 1rem !important;
         margin: 0 auto !important;
     }
 
-    /* ФИКС КАРТИНКИ НА ЗАСТАВКЕ */
+    /* Картинка на заставке: крупнее и по центру */
     [data-testid="stImage"] img {
-        max-height: 350px !important;
+        max-height: 450px !important;
         width: auto !important;
         margin: 0 auto !important;
         display: block !important;
         border-radius: 20px;
     }
 
-    /* ЦЕНТРИРОВАНИЕ КНОПКИ СТАРТ */
-    [data-testid="stVerticalBlock"] > div:has(button[kind="primary"]) {
-        display: flex !important;
-        justify-content: center !important;
-        width: 100% !important;
-    }
-    
+    /* Кнопка Старт */
     button[kind="primary"] {
         width: 100% !important;
-        max-width: 300px !important;
         height: 70px !important;
         font-size: 1.4em !important;
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 20px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
     }
 
-    /* ЖЕСТКИЙ РЯД КНОПОК ОДИНАКОВОЙ ШИРИНЫ */
+    /* Кнопки в игре: Ряд и центрирование */
     [data-testid="stHorizontalBlock"] {
         display: grid !important;
         grid-template-columns: 1fr 1fr 1fr !important;
         gap: 10px !important;
         width: 100% !important;
-        margin-top: 10px !important;
+        margin: 10px auto !important; /* Центрирует весь блок кнопок */
     }
     
-    [data-testid="column"] {
-        width: 100% !important;
-    }
-
     .stButton > button:not([kind="primary"]) {
         width: 100% !important;
-        height: 3.5em !important;
+        height: 3.8em !important;
         font-weight: bold !important;
         border-radius: 12px !important;
         border: 2px solid #2e7d32 !important;
         font-size: 0.85em !important;
-        padding: 0 5px !important; /* Вернул внутренний отступ */
-        white-space: nowrap !important;
         background-color: white !important;
     }
 
@@ -76,10 +62,9 @@ st.markdown("""
     .main-img {
         border-radius: 15px;
         width: 100%;
-        max-height: 45vh;
+        max-height: 48vh;
         object-fit: contain;
         background-color: #f8f9fa;
-        border: 1px solid #eee;
     }
     .image-box { position: relative; width: 100%; text-align: center; margin-bottom: 10px;}
     
@@ -90,7 +75,6 @@ st.markdown("""
         padding: 6px 12px; border-radius: 12px;
         font-weight: bold; font-size: 0.9em; width: 85%;
         border: 2px solid #2e7d32; color: #2e7d32;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -134,16 +118,17 @@ def next_q():
 
 # --- ЭКРАН 1: ОБЛОЖКА ---
 if not st.session_state.started:
-    # Центрированное изображение обложки
     if os.path.exists("cover.jpg"): st.image("cover.jpg")
     elif os.path.exists("cover.png"): st.image("cover.png")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Кнопка СТАРТ
-    if st.button("ALOITA HARJOITUS 🚀", type="primary", use_container_width=False):
-        st.session_state.started = True
-        st.rerun()
+    # Центрируем кнопку через колонки (невидимые пробелы)
+    col_left, col_btn, col_right = st.columns([0.5, 2, 0.5])
+    with col_btn:
+        if st.button("ALOITA HARJOITUS 🚀", type="primary"):
+            st.session_state.started = True
+            st.rerun()
 
 # --- ЭКРАН 2: ТРЕНАЖЕР ---
 elif st.session_state.data:
@@ -164,10 +149,8 @@ elif st.session_state.data:
         </div>
     """, unsafe_allow_html=True)
 
-    # Поле ввода без подсказок
-    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Название...", autocomplete="one-time-code")
+    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="one-time-code")
 
-    # Сетка кнопок
     c1, c2, c3 = st.columns(3)
     
     with c1:
