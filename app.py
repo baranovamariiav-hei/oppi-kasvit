@@ -8,7 +8,7 @@ import os
 
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
-# Дизайн остается прежним
+# Дизайн остается тем же
 st.markdown("""
     <style>
     .main { background-color: #f7f9f7; }
@@ -27,15 +27,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА АВТОЗАГРУЗКИ ---
-@st.cache_data # Чтобы не перечитывать файлы при каждом клике
-def load_data_auto():
-    # УКАЖИТЕ ТУТ ТОЧНЫЕ ИМЕНА ВАШИХ ФАЙЛОВ
-    excel_name = "kasvit.xlsx" 
+# Функция загрузки БЕЗ кеша для проверки
+def load_data_from_folder():
+    excel_name = "kasvit.xlsx"
     zip_name = "kuvat.zip"
     
-    if not os.path.exists(excel_name) or not os.path.exists(zip_name):
-        return None, "Tiedostoja ei löydy GitHubista!"
+    # Проверка наличия файлов
+    if not os.path.exists(excel_name):
+        return None, f"Tiedostoa {excel_name} ei löydy palvelimelta!"
+    if not os.path.exists(zip_name):
+        return None, f"Tiedostoa {zip_name} ei löydy palvelimelta!"
 
     try:
         df = pd.read_excel(excel_name)
@@ -57,23 +58,28 @@ def load_data_auto():
             if curr_id in photos:
                 full_name = f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip()
                 combined.append({'id': curr_id, 'full_answer': full_name, 'image': photos[curr_id]})
+        
+        if not combined:
+            return None, "Yhtään kasvia ei löytynyt (tarkista ID:t Excelissä ja ZIP:issä)"
+            
         return combined, None
     except Exception as e:
-        return None, str(e)
+        return None, f"Virhe tiedoston käsittelyssä: {str(e)}"
 
 # Инициализация сессии
 if 'data' not in st.session_state:
-    data, error = load_data_auto()
+    data, err = load_data_from_folder()
     if data:
         st.session_state.data = data
         st.session_state.current_item = random.choice(data)
+        st.session_state.score = 0
+        st.session_state.total = 0
+        st.session_state.show_answer = False
+        st.session_state.hint_letters = 0
+        st.session_state.widget_key = 0
     else:
-        st.error(f"Virhe: {error}. Tarkista että tiedostot ovat GitHubissa.")
-    st.session_state.score = 0
-    st.session_state.total = 0
-    st.session_state.show_answer = False
-    st.session_state.hint_letters = 0
-    st.session_state.widget_key = 0
+        st.error(err) # ТУТ МЫ УВИДИМ ОШИБКУ НА МОБИЛЬНОМ
+        st.stop()
 
 def next_question():
     if st.session_state.data:
@@ -85,45 +91,42 @@ def next_question():
 # --- ГЛАВНЫЙ ЭКРАН ---
 st.title("🌿 Kasvioppi: Treenaaja")
 
-if st.session_state.get('current_item'):
-    item = st.session_state.current_item
-    st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
-    st.image(item['image'], use_container_width=True)
-    
-    if st.session_state.hint_letters > 0:
-        hint_text = item['full_answer'][:st.session_state.hint_letters]
-        suffix = "..." if st.session_state.hint_letters < len(item['full_answer']) else ""
-        st.markdown(f"<div class='hint-box'>Vihje: {hint_text}{suffix}</div>", unsafe_allow_html=True)
+item = st.session_state.current_item
+st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
+st.image(item['image'], use_container_width=True)
 
-    ans = st.text_input("Kirjoita suomalainen ja latinankielinen nimi:", key=f"input_{st.session_state.widget_key}").strip()
-    
-    col1, col2, col3 = st.columns(3)
-    
-    if col1.button("Tarkista"):
-        if ans.lower() == item['full_answer'].lower():
-            st.session_state.score += 1
-            st.session_state.total += 1
-            st.balloons()
-            st.success("Oikein!")
-            time.sleep(1.2)
-            next_question()
-            st.rerun()
-        else:
-            st.session_state.total += 1
-            st.error("Väärin!")
+if st.session_state.hint_letters > 0:
+    hint_text = item['full_answer'][:st.session_state.hint_letters]
+    suffix = "..." if st.session_state.hint_letters < len(item['full_answer']) else ""
+    st.markdown(f"<div class='hint-box'>Vihje: {hint_text}{suffix}</div>", unsafe_allow_html=True)
 
-    if col2.button("Vihje"):
-        if st.session_state.hint_letters < len(item['full_answer']):
-            st.session_state.hint_letters += 1
-            st.rerun()
+ans = st.text_input("Kirjoita suomalainen ja latinankielinen nimi:", key=f"input_{st.session_state.widget_key}").strip()
 
-    if col3.button("Luovuta"):
-        st.session_state.show_answer = True
+col1, col2, col3 = st.columns(3)
 
-    if st.session_state.show_answer:
-        st.warning(f"Oikea vastaus: **{item['full_answer']}**")
-        if st.button("Seuraava →"):
-            next_question()
-            st.rerun()
-else:
-    st.warning("Lataa tiedostot (kasvit.xlsx ja kuvat.zip) GitHub-kansioon.")
+if col1.button("Tarkista"):
+    if ans.lower() == item['full_answer'].lower():
+        st.session_state.score += 1
+        st.session_state.total += 1
+        st.balloons()
+        st.success("Oikein!")
+        time.sleep(1.2)
+        next_question()
+        st.rerun()
+    else:
+        st.session_state.total += 1
+        st.error("Väärin!")
+
+if col2.button("Vihje"):
+    if st.session_state.hint_letters < len(item['full_answer']):
+        st.session_state.hint_letters += 1
+        st.rerun()
+
+if col3.button("Luovuta"):
+    st.session_state.show_answer = True
+
+if st.session_state.show_answer:
+    st.warning(f"Oikea vastaus: **{item['full_answer']}**")
+    if st.button("Seuraava →"):
+        next_question()
+        st.rerun()
