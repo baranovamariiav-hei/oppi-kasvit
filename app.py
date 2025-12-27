@@ -8,71 +8,76 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- СУПЕР-СТИЛИ (CSS) ---
+# --- ГЛОБАЛЬНЫЕ СТИЛИ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     .block-container { padding-top: 1rem; max-width: 500px; margin: 0 auto; }
     
-    /* Большая кнопка старта по центру */
-    .start-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-    }
-    .big-btn {
-        width: 80% !important;
-        height: 80px !important;
-        font-size: 1.5em !important;
+    /* Кнопка на обложке: Огромная, зеленая, по центру */
+    div.stButton > button#start_btn {
+        display: block;
+        margin: 0 auto;
+        width: 100% !important;
+        height: 100px !important;
+        font-size: 1.8em !important;
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 20px !important;
         border: none !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
     }
 
-    /* ФИКС КНОПОК: всегда в один ряд */
-    .button-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 5px;
-        margin-top: 10px;
+    /* ФИКС КНОПОК: Жесткий ряд через Flexbox */
+    .button-group {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        gap: 5px !important;
+        width: 100% !important;
     }
-    .game-btn {
-        flex: 1;
-        height: 50px;
-        border-radius: 10px;
-        border: 2px solid #2e7d32;
-        background-color: #e8f5e9;
-        color: #2e7d32;
-        font-weight: bold;
-        font-size: 0.9em;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    
+    /* Чтобы стандартные колонки Streamlit не схлопывались в столбик */
+    [data-testid="column"] {
+        width: 32% !important;
+        flex: 1 1 0% !important;
+        min-width: 0px !important;
+    }
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
     }
 
-    /* Картинка и подсказка */
-    .image-container { position: relative; text-align: center; margin-bottom: 5px; }
+    .stButton > button {
+        width: 100% !important;
+        height: 3.5em !important;
+        font-weight: bold !important;
+        font-size: 0.8em !important;
+        border-radius: 10px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Оформление фото */
     .main-img {
         border-radius: 15px;
         width: 100%;
         max-height: 40vh;
         object-fit: contain;
         background-color: #f9f9f9;
+        margin-bottom: 5px;
     }
-    .hint-overlay {
+
+    /* Подсказка поверх фото */
+    .image-box { position: relative; width: 100%; text-align: center; }
+    .hint-label {
         position: absolute;
-        bottom: 8px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 249, 196, 0.95);
-        padding: 4px 12px; border-radius: 12px;
-        font-weight: bold; font-size: 0.85em; width: 85%;
-        border: 1px solid #fbc02d; color: #5d4037; z-index: 10;
+        bottom: 10px; left: 50%; transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 5px 15px; border-radius: 15px;
+        font-weight: bold; font-size: 0.9em; width: 85%;
+        border: 2px solid #2e7d32; color: #2e7d32;
     }
-    
-    .status-box { text-align: center; padding: 10px; border-radius: 10px; margin-top: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -119,62 +124,72 @@ if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
     elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
-    # Большая кнопка СТАРТ по центру
-    st.write("")
-    if st.button("ALOITA HARJOITUS 🚀", key="start_btn", type="primary"):
+    # Кнопка СТАРТ (ID для CSS)
+    if st.button("ALOITA HARJOITUS 🚀", key="start_btn"):
         st.session_state.started = True
         st.rerun()
 
 elif st.session_state.data:
     it = st.session_state.item
-    st.markdown(f"<p style='text-align: center; font-weight: bold; margin-bottom: 5px;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 0;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
-    # Картинка
+    # Фото
     b64 = base64.b64encode(it['img']).decode()
     hint_html = ""
     if st.session_state.hint_letters > 0:
         txt = it['ans'][:st.session_state.hint_letters]
         suff = "..." if st.session_state.hint_letters < len(it['ans']) else ""
-        hint_html = f"<div class='hint-overlay'>{txt}{suff}</div>"
+        hint_html = f"<div class='hint-label'>{txt}{suff}</div>"
         
     st.markdown(f"""
-        <div class="image-container">
+        <div class="image-box">
             <img src="data:image/jpeg;base64,{b64}" class="main-img">
             {hint_html}
         </div>
     """, unsafe_allow_html=True)
 
-    # ПОЛЕ ВВОДА С ОТКЛЮЧЕННЫМ АВТОЗАПОЛНЕНИЕМ
-    # Мы используем кастомный HTML для внедрения атрибутов
+    # ПОЛЕ ВВОДА: Блокируем автозаполнение через атрибуты
     ans = st.text_input(
-        "Vastaus:", 
+        "Vastaus", 
         key=f"v_{st.session_state.widget_key}", 
-        label_visibility="collapsed", 
-        placeholder="Nimi Latina",
-        autocomplete="new-password" # Трюк для обмана автозаполнения
+        label_visibility="collapsed",
+        placeholder="Nimi Latina...",
+        autocomplete="off" # Попытка №1
     )
+    # Дополнительная защита от автозаполнения через JS-скрипт (инъекция в HTML)
+    st.components.v1.html(f"""
+        <script>
+            var inputs = window.parent.document.querySelectorAll('input');
+            inputs.forEach(input => {{
+                input.setAttribute('autocomplete', 'off');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocapitalize', 'off');
+                input.setAttribute('spellcheck', 'false');
+            }});
+        </script>
+    """, height=0)
 
-    # КНОПКИ (используем стандартные колонки, но с усиленным CSS выше)
-    c1, c2, c3 = st.columns(3)
+    # КНОПКИ В РЯД
+    col1, col2, col3 = st.columns(3)
     
-    if c1.button("Tarkista"):
+    if col1.button("Tarkista"):
         st.session_state.total += 1
         if ans.lower().strip() == it['ans'].lower():
             st.session_state.score += 1
             st.balloons()
-            st.markdown("<div class='status-box' style='color: green; background: #e8f5e9;'>Oikein!</div>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: green; font-weight: bold;'>Oikein!</p>", unsafe_allow_html=True)
             time.sleep(1.5)
             next_q()
             st.rerun()
         else:
-            st.markdown("<div class='status-box' style='color: red; background: #ffebee;'>Väärin! Korjaa tai käytä vihjettä.</div>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: red; font-weight: bold;'>Väärin! Korjaa tai katso vihje.</p>", unsafe_allow_html=True)
 
-    if c2.button("Vihje"):
+    if col2.button("Vihje"):
         if st.session_state.hint_letters < len(it['ans']):
             st.session_state.hint_letters += 1
             st.rerun()
 
-    if c3.button("Luovuta"):
+    if col3.button("Luovuta"):
         st.session_state.show_ans = True
 
     if st.session_state.get('show_ans'):
