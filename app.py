@@ -8,61 +8,71 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- СТИЛИ ДЛЯ КОМПАКТНОСТИ И ЦЕНТРИРОВАНИЯ ---
+# --- МАКСИМАЛЬНО ЖЕСТКИЙ CSS ДЛЯ ФИКСАЦИИ ИНТЕРФЕЙСА ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Главный контейнер: центрируем всё на компе */
+    /* Контейнер приложения */
     .main .block-container {
-        max-width: 550px !important;
-        padding: 1.5rem 1rem !important;
+        max-width: 500px !important;
+        padding: 1rem !important;
         margin: 0 auto !important;
     }
 
-    /* Картинка на заставке: крупнее и по центру */
-    [data-testid="stImage"] img {
-        max-height: 450px !important;
-        width: auto !important;
-        margin: 0 auto !important;
-        display: block !important;
+    /* ЦЕНТРИРОВАНИЕ ВСЕГО НА ПЕРВОМ ЭКРАНЕ */
+    .stImage > img {
+        width: 100% !important;
+        max-width: 500px !important;
+        height: auto !important;
         border-radius: 20px;
+        margin-bottom: 20px;
     }
 
-    /* Кнопка Старт */
+    /* Кнопка Старт: Центрирование через Flex */
+    .start-wrapper {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    /* Стилизация кнопок */
     button[kind="primary"] {
         width: 100% !important;
-        height: 70px !important;
-        font-size: 1.4em !important;
+        height: 75px !important;
+        font-size: 1.5em !important;
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 20px !important;
+        border: none !important;
     }
 
-    /* Кнопки в игре: Ряд и центрирование */
+    /* ИГРОВЫЕ КНОПКИ: ЖЕСТКИЙ РЯД */
     [data-testid="stHorizontalBlock"] {
         display: grid !important;
         grid-template-columns: 1fr 1fr 1fr !important;
-        gap: 10px !important;
+        gap: 8px !important;
         width: 100% !important;
-        margin: 10px auto !important; /* Центрирует весь блок кнопок */
     }
     
     .stButton > button:not([kind="primary"]) {
         width: 100% !important;
-        height: 3.8em !important;
+        height: 4em !important;
         font-weight: bold !important;
         border-radius: 12px !important;
         border: 2px solid #2e7d32 !important;
         font-size: 0.85em !important;
+        white-space: nowrap !important; /* ЗАПРЕТ ПЕРЕНОСА СЛОВ */
+        overflow: hidden;
         background-color: white !important;
     }
 
-    /* Оформление фото в игре */
+    /* Фото в игре */
     .main-img {
         border-radius: 15px;
         width: 100%;
-        max-height: 48vh;
+        max-height: 45vh;
         object-fit: contain;
         background-color: #f8f9fa;
     }
@@ -75,6 +85,11 @@ st.markdown("""
         padding: 6px 12px; border-radius: 12px;
         font-weight: bold; font-size: 0.9em; width: 85%;
         border: 2px solid #2e7d32; color: #2e7d32;
+    }
+    
+    /* Сообщение об ошибке/успехе по центру */
+    .stAlert {
+        text-align: center !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -118,17 +133,15 @@ def next_q():
 
 # --- ЭКРАН 1: ОБЛОЖКА ---
 if not st.session_state.started:
-    if os.path.exists("cover.jpg"): st.image("cover.jpg")
-    elif os.path.exists("cover.png"): st.image("cover.png")
+    if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
+    elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Центрируем кнопку через колонки (невидимые пробелы)
-    col_left, col_btn, col_right = st.columns([0.5, 2, 0.5])
-    with col_btn:
-        if st.button("ALOITA HARJOITUS 🚀", type="primary"):
-            st.session_state.started = True
-            st.rerun()
+    # Кнопка СТАРТ через обертку для центрирования
+    st.markdown('<div class="start-wrapper">', unsafe_allow_html=True)
+    if st.button("ALOITA HARJOITUS 🚀", type="primary"):
+        st.session_state.started = True
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ЭКРАН 2: ТРЕНАЖЕР ---
 elif st.session_state.data:
@@ -164,7 +177,7 @@ elif st.session_state.data:
                 next_q()
                 st.rerun()
             else:
-                st.error("Väärin!")
+                st.error("Väärin! Korjaa или подсказка.")
 
     with c2:
         if st.button("Vihje"):
