@@ -6,7 +6,6 @@ import io
 
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
-# Дизайн
 st.markdown("""
     <style>
     .main { background-color: #f7f9f7; }
@@ -14,18 +13,17 @@ st.markdown("""
     .stButton>button:hover { background-color: #2e7d32; color: white; }
     img { border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
     .stat-box { padding: 10px; border-radius: 10px; background-color: white; border: 1px solid #eee; margin-bottom: 10px; }
+    .hint-text { color: #2e7d32; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; background: #e8f5e9; padding: 10px; border-radius: 10px; border-left: 5px solid #2e7d32; }
     </style>
     """, unsafe_allow_html=True)
 
-# Инициализация
 if 'data' not in st.session_state:
     st.session_state.data = None
     st.session_state.current_item = None
     st.session_state.score = 0
     st.session_state.total = 0
     st.session_state.show_answer = False
-    st.session_state.input_text = ""  # Текст, который должен быть в поле
-    st.session_state.widget_key = 0   # Счетчик для принудительного обновления виджета
+    st.session_state.hint_count = 0 # Считаем, сколько букв показать
 
 def load_data(table_file, zip_file):
     try:
@@ -62,8 +60,7 @@ def next_question():
     if st.session_state.data:
         st.session_state.current_item = random.choice(st.session_state.data)
         st.session_state.show_answer = False
-        st.session_state.input_text = ""
-        st.session_state.widget_key += 1 # Меняем ключ, чтобы очистить поле
+        st.session_state.hint_count = 0 # Сбрасываем подсказку
 
 # --- ИНТЕРФЕЙС ---
 with st.sidebar:
@@ -87,42 +84,30 @@ if st.session_state.current_item:
     st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    # Поле ввода с ДИНАМИЧЕСКИМ ключом
-    # Это заставляет Streamlit пересоздавать поле с нужным нам текстом
-    current_input = st.text_input(
-        "Mikä kasvi tämä on?", 
-        value=st.session_state.input_text, 
-        key=f"input_widget_{st.session_state.widget_key}"
-    )
+    # ПОДСКАЗКА ТЕКСТОМ (если нажали кнопку)
+    if st.session_state.hint_count > 0:
+        hint_word = item['name'][:st.session_state.hint_count]
+        st.markdown(f"<div class='hint-text'>Vihje: {hint_word}...</div>", unsafe_allow_html=True)
+
+    ans = st.text_input("Mikä kasvi tämä on?", key="main_input").strip()
     
     col1, col2, col3 = st.columns(3)
     
     if col1.button("Tarkista"):
         st.session_state.total += 1
-        if current_input.strip().lower() == item['name'].lower():
+        if ans.lower() == item['name'].lower():
             st.session_state.score += 1
             st.balloons()
             next_question()
             st.rerun()
         else:
-            st.error("Väärin! Yritä uudelleen.")
+            st.error("Väärin! Katso vihje.")
 
+    # Теперь кнопка просто увеличивает счетчик букв
     if col2.button("Vihje"):
-        correct_name = item['name']
-        # Берем то, что ввел пользователь прямо сейчас
-        user_typed = current_input.strip()
-        
-        match_len = 0
-        for i in range(min(len(user_typed), len(correct_name))):
-            if user_typed[i].lower() == correct_name[i].lower():
-                match_len += 1
-            else:
-                break
-        
-        # Обновляем текст и КЛЮЧ виджета (чтобы он перерисовался с новым value)
-        st.session_state.input_text = correct_name[:match_len + 1]
-        st.session_state.widget_key += 1
-        st.rerun()
+        if st.session_state.hint_count < len(item['name']):
+            st.session_state.hint_count += 1
+            st.rerun()
 
     if col3.button("Luovuta"):
         st.session_state.show_answer = True
