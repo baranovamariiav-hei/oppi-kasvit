@@ -4,7 +4,6 @@ import random
 import zipfile
 import io
 
-# Настройка страницы
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
 # Дизайн
@@ -18,16 +17,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Инициализация всех переменных
+# Инициализация
 if 'data' not in st.session_state:
     st.session_state.data = None
     st.session_state.current_item = None
     st.session_state.score = 0
     st.session_state.total = 0
     st.session_state.show_answer = False
-    # Ключевая переменная для хранения текста в поле ввода
-    if 'user_input' not in st.session_state:
-        st.session_state.user_input = ""
+    st.session_state.input_text = ""  # Текст, который должен быть в поле
+    st.session_state.widget_key = 0   # Счетчик для принудительного обновления виджета
 
 def load_data(table_file, zip_file):
     try:
@@ -37,7 +35,6 @@ def load_data(table_file, zip_file):
             df = pd.read_excel(table_file)
         df.columns = [str(c).strip().upper() for c in df.columns]
         df['ID'] = df['ID'].astype(str).str.split('.').str[0].str.zfill(3)
-        
         photos = {}
         with zipfile.ZipFile(zip_file) as z:
             for file_info in z.infolist():
@@ -46,7 +43,6 @@ def load_data(table_file, zip_file):
                     file_id = fname[:3]
                     with z.open(file_info) as f:
                         photos[file_id] = f.read()
-        
         combined = []
         for _, row in df.iterrows():
             curr_id = row['ID']
@@ -66,22 +62,8 @@ def next_question():
     if st.session_state.data:
         st.session_state.current_item = random.choice(st.session_state.data)
         st.session_state.show_answer = False
-        st.session_state.user_input = ""
-
-# Функция для кнопки Vihje
-def give_hint():
-    correct_name = st.session_state.current_item['name']
-    current_input = st.session_state.user_input.strip()
-    
-    match_len = 0
-    for i in range(min(len(current_input), len(correct_name))):
-        if current_input[i].lower() == correct_name[i].lower():
-            match_len += 1
-        else:
-            break
-    
-    # Обновляем текст в сессии
-    st.session_state.user_input = correct_name[:match_len + 1]
+        st.session_state.input_text = ""
+        st.session_state.widget_key += 1 # Меняем ключ, чтобы очистить поле
 
 # --- ИНТЕРФЕЙС ---
 with st.sidebar:
@@ -105,14 +87,19 @@ if st.session_state.current_item:
     st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    # ПРИВЯЗЫВАЕМ ПОЛЕ К СЕССИИ
-    st.text_input("Mikä kasvi tämä on?", key="user_input")
+    # Поле ввода с ДИНАМИЧЕСКИМ ключом
+    # Это заставляет Streamlit пересоздавать поле с нужным нам текстом
+    current_input = st.text_input(
+        "Mikä kasvi tämä on?", 
+        value=st.session_state.input_text, 
+        key=f"input_widget_{st.session_state.widget_key}"
+    )
     
     col1, col2, col3 = st.columns(3)
     
     if col1.button("Tarkista"):
         st.session_state.total += 1
-        if st.session_state.user_input.strip().lower() == item['name'].lower():
+        if current_input.strip().lower() == item['name'].lower():
             st.session_state.score += 1
             st.balloons()
             next_question()
@@ -120,8 +107,22 @@ if st.session_state.current_item:
         else:
             st.error("Väärin! Yritä uudelleen.")
 
-    # Используем on_click для мгновенной реакции
-    col2.button("Vihje", on_click=give_hint)
+    if col2.button("Vihje"):
+        correct_name = item['name']
+        # Берем то, что ввел пользователь прямо сейчас
+        user_typed = current_input.strip()
+        
+        match_len = 0
+        for i in range(min(len(user_typed), len(correct_name))):
+            if user_typed[i].lower() == correct_name[i].lower():
+                match_len += 1
+            else:
+                break
+        
+        # Обновляем текст и КЛЮЧ виджета (чтобы он перерисовался с новым value)
+        st.session_state.input_text = correct_name[:match_len + 1]
+        st.session_state.widget_key += 1
+        st.rerun()
 
     if col3.button("Luovuta"):
         st.session_state.show_answer = True
