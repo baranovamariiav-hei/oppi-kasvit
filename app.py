@@ -18,7 +18,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Инициализация переменных в памяти браузера
 if 'data' not in st.session_state:
     st.session_state.data = None
     st.session_state.current_item = None
@@ -29,34 +28,28 @@ if 'data' not in st.session_state:
 
 def load_data(table_file, zip_file):
     try:
-        # 1. Читаем таблицу
         if table_file.name.endswith('.csv'):
             df = pd.read_csv(table_file)
         else:
             df = pd.read_excel(table_file)
         
-        # Приводим названия колонок к единому виду
         df.columns = [str(c).strip().upper() for c in df.columns]
         
         if 'ID' not in df.columns or 'NIMI' not in df.columns:
-            st.error("Virhe: Excelistä puuttuu sarake ID или NIMI!")
+            st.error("Virhe: Excelistä puuttuu sarake ID tai NIMI!")
             return None
 
-        # Форматируем ID как 001
         df['ID'] = df['ID'].astype(str).str.split('.').str[0].str.zfill(3)
         
-        # 2. Читаем фото из ZIP
         photos = {}
         with zipfile.ZipFile(zip_file) as z:
             for file_info in z.infolist():
-                # Берем только имя файла без пути к папке
                 fname = file_info.filename.split('/')[-1]
                 if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    file_id = fname[:3] # Первые 3 символа
+                    file_id = fname[:3]
                     with z.open(file_info) as f:
                         photos[file_id] = f.read()
         
-        # 3. Сопоставляем данные
         combined = []
         for _, row in df.iterrows():
             curr_id = row['ID']
@@ -64,12 +57,12 @@ def load_data(table_file, zip_file):
                 combined.append({
                     'id': curr_id,
                     'name': str(row['NIMI']).strip(),
-                    'latin': str(row.get('LATINA', '')).strip(), # Если нет латыни, будет пусто
+                    'latin': str(row.get('LATINA', '')).strip(),
                     'image': photos[curr_id]
                 })
         return combined
     except Exception as e:
-        st.error(f"Virhe tiedostojen luvussa: {e}")
+        st.error(f"Virhe: {e}")
         return None
 
 def next_question():
@@ -78,7 +71,7 @@ def next_question():
         st.session_state.feedback = ""
         st.session_state.show_hint = False
 
-# --- ИНТЕРФЕЙС (САЙДБАР) ---
+# --- ИНТЕРФЕЙС ---
 with st.sidebar:
     st.header("⚙️ Asetukset")
     t_file = st.file_uploader("1. Lataa Excel", type=['xlsx', 'csv'])
@@ -94,23 +87,19 @@ with st.sidebar:
                 next_question()
                 st.success(f"Ladattu {len(st.session_state.data)} kasvia!")
 
-# --- ГЛАВНЫЙ ЭКРАН ---
 st.title("🌿 Kasvioppi: Treenaaja")
 
 if st.session_state.current_item:
     item = st.session_state.current_item
     
-    # Статистика
     st.markdown(f"""<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>""", unsafe_allow_html=True)
-    
-    # Картинка
     st.image(item['image'], use_container_width=True)
     
-    # Ответ
     ans = st.text_input("Mikä kasvi tämä on?", key="ans_input").strip()
     
     col1, col2, col3 = st.columns(3)
     
+    # КНОПКИ С ВАШИМИ НАЗВАНИЯМИ
     if col1.button("Tarkista"):
         st.session_state.total += 1
         if ans.lower() == item['name'].lower():
@@ -121,24 +110,27 @@ if st.session_state.current_item:
             next_question()
             st.rerun()
         else:
-            st.session_state.feedback = f"❌ Väärin. Oikea vastaus: {item['name']}"
+            st.session_state.feedback = f"❌ Väärin!"
 
     if col2.button("Vihje"):
         st.session_state.show_hint = True
         
-    if col3.button("Seuraava"):
+    if col3.button("Luovuta"):
+        st.session_state.feedback = f"Oikea vastaus: {item['name']} (*{item['latin']}*)"
         st.session_state.total += 1
-        next_question()
-        st.rerun()
 
+    # НАСТРОЙКА ПОДСКАЗКИ (Как вы просили)
     if st.session_state.show_hint:
-        hint_text = f"💡 Alkaa: {item['name'][0].upper()}"
-        if item['latin']:
-            hint_text += f" | Latina: {item['latin']}"
-        st.info(hint_text)
+        st.info(f"💡 {item['name']} | *{item['latin']}*")
     
-    if st.session_state.feedback and "❌" in st.session_state.feedback:
-        st.error(st.session_state.feedback)
-
+    if st.session_state.feedback:
+        if "✅" in st.session_state.feedback:
+            pass 
+        else:
+            st.error(st.session_state.feedback)
+            st.write(f"Oikea vastaus: **{item['name']}** (*{item['latin']}*)")
+            if st.button("Seuraava →"):
+                next_question()
+                st.rerun()
 else:
     st.info("Lataa tiedostot vasemmalta aloittaaksesi.")
