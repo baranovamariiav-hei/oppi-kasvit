@@ -8,7 +8,7 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- ЖЕСТКИЙ CSS ДЛЯ ФИКСАЦИИ ГЕОМЕТРИИ ---
+# --- СТИЛИ ДЛЯ ИСПРАВЛЕНИЯ ВЕРСТКИ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
@@ -39,34 +39,33 @@ st.markdown("""
         border-radius: 15px !important;
     }
 
-    /* РЯД КНОПОК: ЗАСТАВЛЯЕМ ИХ СТОЯТЬ В РЯД ВСЕГДА */
+    /* ФИКС КНОПОК: ВСЕГДА В РЯД */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        align-items: stretch !important;
         gap: 8px !important;
+        width: 100% !important;
     }
     
     div[data-testid="column"] {
-        width: 33.33% !important;
         flex: 1 1 0% !important;
         min-width: 0px !important;
     }
 
     .stButton > button:not([kind="primary"]) {
         width: 100% !important;
-        height: 3.5em !important;
+        height: 3.8em !important;
         font-weight: bold !important;
         border-radius: 10px !important;
         border: 2px solid #2e7d32 !important;
         font-size: 0.85em !important;
         background-color: white !important;
         white-space: nowrap !important;
-        padding: 0 !important;
+        padding: 0 2px !important;
     }
 
-    /* Фото в игре */
+    /* Картинка в игре */
     .main-img {
         border-radius: 15px;
         width: 100%;
@@ -78,14 +77,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА ЗАГРУЗКИ ---
+# --- ЛОГИКА (ИСПРАВЛЕННАЯ) ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
     try:
         df = pd.read_excel("kasvit.xlsx")
         df.columns = [str(c).strip().upper() for c in df.columns]
+        # Безопасная очистка ID
         df['ID'] = df['ID'].astype(str).apply(lambda x: x.split('.')[0].zfill(3))
+        
         photos = {}
         with zipfile.ZipFile("kuvat.zip") as z:
             for f_info in z.infolist():
@@ -93,6 +94,7 @@ def load_data():
                 if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
                     with z.open(f_info) as f:
                         photos[fname[:3]] = f.read()
+        
         combined = []
         for _, row in df.iterrows():
             if row['ID'] in photos:
@@ -101,7 +103,8 @@ def load_data():
                     'img': photos[row['ID']]
                 })
         return combined
-    except: return None
+    except:
+        return None
 
 if 'started' not in st.session_state: st.session_state.started = False
 if 'data' not in st.session_state:
@@ -115,7 +118,7 @@ def next_q():
     st.session_state.item = random.choice(st.session_state.data)
     st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
-# --- ИНТЕРФЕЙС ---
+# --- ЭКРАНЫ ---
 
 if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg")
@@ -127,11 +130,50 @@ if not st.session_state.started:
 
 elif st.session_state.data:
     it = st.session_state.item
-    st.markdown(f"<p style='text-align: center; font-weight: bold; margin-bottom: 5px;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; font-weight: bold;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
     b64 = base64.b64encode(it['img']).decode()
     hint_html = ""
     if st.session_state.hint_letters > 0:
         txt = it['ans'][:st.session_state.hint_letters]
         suff = "..." if st.session_state.hint_letters < len(it['ans']) else ""
-        hint_html = f"<div style='position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:white; padding:5px 10px; border-radius:10px; border:2px solid #2e7d32; font-weight:bold; width:80%; text-
+        # ЗДЕСЬ ИСПРАВЛЕНА ТА САМАЯ ОШИБКА (строка 137):
+        hint_html = f"<div style='position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:white; padding:5px 10px; border-radius:10px; border:2px solid #2e7d32; font-weight:bold; width:80%; text-align:center;'>{txt}{suff}</div>"
+        
+    st.markdown(f"""
+        <div style="position: relative; text-align: center;">
+            <img src="data:image/jpeg;base64,{b64}" class="main-img">
+            {hint_html}
+        </div>
+    """, unsafe_allow_html=True)
+
+    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="one-time-code")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Tarkista"):
+            st.session_state.total += 1
+            if ans.lower().strip() == it['ans'].lower():
+                st.session_state.score += 1
+                st.balloons()
+                st.success("Oikein!")
+                time.sleep(1.2)
+                next_q()
+                st.rerun()
+            else: st.error("Väärin!")
+    with c2:
+        if st.button("Vihje"):
+            if st.session_state.hint_letters < len(it['ans']):
+                st.session_state.hint_letters += 1
+                st.rerun()
+    with c3:
+        if st.button("Luovuta"):
+            st.session_state.show_ans = True
+
+    if st.session_state.get('show_ans'):
+        st.info(f"Oikea: {it['ans']}")
+        if st.button("Seuraava →"):
+            st.session_state.total += 1
+            st.session_state.show_ans = False
+            next_q()
+            st.rerun()
