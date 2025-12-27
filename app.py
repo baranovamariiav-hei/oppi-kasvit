@@ -8,50 +8,57 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- СИЛОВОЙ CSS ДЛЯ УДАЛЕНИЯ ПУСТОТЫ ---
+# --- ЖЕСТКИЙ CSS ДЛЯ ФИКСАЦИИ РЯДА ---
 st.markdown("""
     <style>
-    /* 1. Убираем ВСЕ внешние отступы самого контейнера Streamlit */
     header, footer, #MainMenu {visibility: hidden;}
     
+    /* Убираем внешние отступы */
     .main .block-container {
         max-width: 100% !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        padding-top: 1rem !important;
+        padding: 1rem 0.5rem !important;
+        margin: 0 auto !important;
     }
 
-    /* 2. Кнопка на обложке: на всю доступную ширину */
-    div.stButton > button[kind="primary"] {
-        width: 100% !important;
+    /* ЦЕНТРИРОВАНИЕ КНОПКИ СТАРТ */
+    .stButton {
+        display: flex;
+        justify-content: center;
+    }
+    
+    button[kind="primary"] {
+        width: 90% !important;
         height: 70px !important;
         font-size: 1.4em !important;
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 15px !important;
-        margin: 0 auto !important;
     }
 
-    /* 3. Кнопки в ряд: убираем лишние зазоры между колонками */
+    /* ЖЕСТКИЙ РЯД КНОПОК (GRID) */
     [data-testid="stHorizontalBlock"] {
-        gap: 8px !important; /* Узкий зазор между кнопками */
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important; /* Ровно 3 колонки всегда! */
+        gap: 6px !important;
+        align-items: center !important;
     }
     
     [data-testid="column"] {
-        padding: 0 !important;
-        margin: 0 !important;
+        width: 100% !important;
     }
 
     .stButton > button {
         width: 100% !important;
-        height: 3.8em !important;
+        height: 3.5em !important;
         font-weight: bold !important;
         border-radius: 10px !important;
         border: 2px solid #2e7d32 !important;
-        font-size: 0.9em !important;
+        font-size: 0.8em !important;
+        padding: 0 !important;
+        white-space: nowrap !important;
     }
 
-    /* 4. Картинка */
+    /* Картинка и подсказка */
     .main-img {
         border-radius: 15px;
         width: 100%;
@@ -65,14 +72,14 @@ st.markdown("""
         position: absolute;
         bottom: 10px; left: 50%; transform: translateX(-50%);
         background: rgba(255, 255, 255, 0.95);
-        padding: 5px 10px; border-radius: 12px;
-        font-weight: bold; font-size: 0.9em; width: 85%;
-        border: 2px solid #2e7d32; color: #2e7d32;
+        padding: 4px 8px; border-radius: 10px;
+        font-weight: bold; font-size: 0.85em; width: 85%;
+        border: 1px solid #2e7d32; color: #2e7d32;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА (БЕЗ ИЗМЕНЕНИЙ) ---
+# --- ЛОГИКА ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
@@ -140,6 +147,7 @@ elif st.session_state.data:
 
     ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="one-time-code")
 
+    # СЮДА ПРИМЕНИТСЯ GRID ИЗ CSS
     c1, c2, c3 = st.columns(3)
     
     with c1:
@@ -149,7 +157,7 @@ elif st.session_state.data:
                 st.session_state.score += 1
                 st.balloons()
                 st.success("Oikein!")
-                time.sleep(1.5)
+                time.sleep(1.2)
                 next_q()
                 st.rerun()
             else:
