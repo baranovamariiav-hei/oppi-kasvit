@@ -4,7 +4,6 @@ import random
 import zipfile
 import io
 
-# Настройка страницы
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
 # Дизайн
@@ -23,8 +22,8 @@ if 'data' not in st.session_state:
     st.session_state.current_item = None
     st.session_state.score = 0
     st.session_state.total = 0
-    st.session_state.feedback = ""
-    st.session_state.show_hint = False
+    st.session_state.show_answer = False
+    st.session_state.hint_text = "" # Здесь храним текущую подсказку (правильное начало)
 
 def load_data(table_file, zip_file):
     try:
@@ -32,13 +31,7 @@ def load_data(table_file, zip_file):
             df = pd.read_csv(table_file)
         else:
             df = pd.read_excel(table_file)
-        
         df.columns = [str(c).strip().upper() for c in df.columns]
-        
-        if 'ID' not in df.columns or 'NIMI' not in df.columns:
-            st.error("Virhe: Excelistä puuttuu sarake ID tai NIMI!")
-            return None
-
         df['ID'] = df['ID'].astype(str).str.split('.').str[0].str.zfill(3)
         
         photos = {}
@@ -68,15 +61,14 @@ def load_data(table_file, zip_file):
 def next_question():
     if st.session_state.data:
         st.session_state.current_item = random.choice(st.session_state.data)
-        st.session_state.feedback = ""
-        st.session_state.show_hint = False
+        st.session_state.show_answer = False
+        st.session_state.hint_text = ""
 
 # --- ИНТЕРФЕЙС ---
 with st.sidebar:
     st.header("⚙️ Asetukset")
     t_file = st.file_uploader("1. Lataa Excel", type=['xlsx', 'csv'])
     p_file = st.file_uploader("2. Lataa kuvat (ZIP)", type=['zip'])
-    
     if st.button("🚀 Aloita harjoitus"):
         if t_file and p_file:
             loaded = load_data(t_file, p_file)
@@ -85,52 +77,55 @@ with st.sidebar:
                 st.session_state.score = 0
                 st.session_state.total = 0
                 next_question()
-                st.success(f"Ladattu {len(st.session_state.data)} kasvia!")
 
 st.title("🌿 Kasvioppi: Treenaaja")
 
 if st.session_state.current_item:
     item = st.session_state.current_item
-    
-    st.markdown(f"""<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>""", unsafe_allow_html=True)
+    st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    ans = st.text_input("Mikä kasvi tämä on?", key="ans_input").strip()
+    # Поле ввода. Мы передаем в него значение из hint_text
+    # Если hint_text изменится (нажата подсказка), поле обновится
+    ans = st.text_input("Mikä kasvi tämä on?", value=st.session_state.hint_text, key="ans_input").strip()
     
     col1, col2, col3 = st.columns(3)
     
-    # КНОПКИ С ВАШИМИ НАЗВАНИЯМИ
     if col1.button("Tarkista"):
         st.session_state.total += 1
         if ans.lower() == item['name'].lower():
             st.session_state.score += 1
             st.balloons()
-            st.session_state.feedback = "✅ OIKEIN!"
-            st.success(st.session_state.feedback)
             next_question()
             st.rerun()
         else:
-            st.session_state.feedback = f"❌ Väärin!"
+            st.error("Väärin! Yritä uudelleen tai käytä vihjettä.")
 
     if col2.button("Vihje"):
-        st.session_state.show_hint = True
+        correct_name = item['name']
+        current_input = ans
         
-    if col3.button("Luovuta"):
-        st.session_state.feedback = f"Oikea vastaus: {item['name']} (*{item['latin']}*)"
-        st.session_state.total += 1
+        # Логика определения правильной части
+        match_len = 0
+        for i in range(min(len(current_input), len(correct_name))):
+            if current_input[i].lower() == correct_name[i].lower():
+                match_len += 1
+            else:
+                break
+        
+        # Обрезаем до правильного и добавляем ОДНУ букву
+        new_hint = correct_name[:match_len + 1]
+        st.session_state.hint_text = new_hint
+        st.rerun()
 
-    # НАСТРОЙКА ПОДСКАЗКИ (Как вы просили)
-    if st.session_state.show_hint:
-        st.info(f"💡 {item['name']} | *{item['latin']}*")
-    
-    if st.session_state.feedback:
-        if "✅" in st.session_state.feedback:
-            pass 
-        else:
-            st.error(st.session_state.feedback)
-            st.write(f"Oikea vastaus: **{item['name']}** (*{item['latin']}*)")
-            if st.button("Seuraava →"):
-                next_question()
-                st.rerun()
+    if col3.button("Luovuta"):
+        st.session_state.show_answer = True
+
+    if st.session_state.show_answer:
+        st.write(f"Oikea vastaus: **{item['name']}** (*{item['latin']}*)")
+        if st.button("Seuraava →"):
+            st.session_state.total += 1
+            next_question()
+            st.rerun()
 else:
     st.info("Lataa tiedostot vasemmalta aloittaaksesi.")
