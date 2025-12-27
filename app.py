@@ -8,100 +8,88 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- МАКСИМАЛЬНО ЖЕСТКИЙ CSS ДЛЯ ФИКСАЦИИ ИНТЕРФЕЙСА ---
+# --- СТИЛИ БЕЗ КОМПРОМИССОВ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Контейнер приложения */
     .main .block-container {
         max-width: 500px !important;
         padding: 1rem !important;
         margin: 0 auto !important;
     }
 
-    /* ЦЕНТРИРОВАНИЕ ВСЕГО НА ПЕРВОМ ЭКРАНЕ */
-    .stImage > img {
-        width: 100% !important;
-        max-width: 500px !important;
-        height: auto !important;
+    /* ФОТО НА ПЕРВОМ ЭКРАНЕ */
+    .cover-img {
+        width: 100%;
+        max-width: 500px;
         border-radius: 20px;
-        margin-bottom: 20px;
+        display: block;
+        margin: 0 auto 20px auto;
     }
 
-    /* Кнопка Старт: Центрирование через Flex */
-    .start-wrapper {
+    /* КНОПКА СТАРТ ПО ЦЕНТРУ */
+    .center-wrapper {
         display: flex;
         justify-content: center;
+        align-items: center;
         width: 100%;
-        margin-top: 20px;
     }
     
-    /* Стилизация кнопок */
-    button[kind="primary"] {
-        width: 100% !important;
-        height: 75px !important;
-        font-size: 1.5em !important;
-        background-color: #2e7d32 !important;
-        color: white !important;
-        border-radius: 20px !important;
-        border: none !important;
-    }
-
-    /* ИГРОВЫЕ КНОПКИ: ЖЕСТКИЙ РЯД */
+    /* ИГРОВЫЕ КНОПКИ: РАВНОМЕРНАЯ СЕТКА */
     [data-testid="stHorizontalBlock"] {
         display: grid !important;
         grid-template-columns: 1fr 1fr 1fr !important;
-        gap: 8px !important;
+        gap: 6px !important;
         width: 100% !important;
     }
-    
-    .stButton > button:not([kind="primary"]) {
+
+    .stButton > button {
         width: 100% !important;
-        height: 4em !important;
+        height: 3.8em !important;
         font-weight: bold !important;
         border-radius: 12px !important;
         border: 2px solid #2e7d32 !important;
-        font-size: 0.85em !important;
-        white-space: nowrap !important; /* ЗАПРЕТ ПЕРЕНОСА СЛОВ */
-        overflow: hidden;
+        font-size: 0.75rem !important; /* Чуть меньше, чтобы текст не резался */
+        white-space: normal !important; /* Разрешаем перенос внутри кнопки, если слово очень длинное */
+        line-height: 1.1;
+        padding: 2px !important;
         background-color: white !important;
+    }
+
+    /* Кнопка Старт особенная */
+    button[kind="primary"] {
+        background-color: #2e7d32 !important;
+        color: white !important;
+        font-size: 1.3rem !important;
+        height: 70px !important;
+        max-width: 300px !important;
     }
 
     /* Фото в игре */
     .main-img {
         border-radius: 15px;
         width: 100%;
-        max-height: 45vh;
+        max-height: 42vh;
         object-fit: contain;
         background-color: #f8f9fa;
-    }
-    .image-box { position: relative; width: 100%; text-align: center; margin-bottom: 10px;}
-    
-    .hint-label {
-        position: absolute;
-        bottom: 10px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.95);
-        padding: 6px 12px; border-radius: 12px;
-        font-weight: bold; font-size: 0.9em; width: 85%;
-        border: 2px solid #2e7d32; color: #2e7d32;
-    }
-    
-    /* Сообщение об ошибке/успехе по центру */
-    .stAlert {
-        text-align: center !important;
+        margin-bottom: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- ЛОГИКА ---
+def get_base64(file_path):
+    with open(file_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
     try:
         df = pd.read_excel("kasvit.xlsx")
         df.columns = [str(c).strip().upper() for c in df.columns]
-        df['ID'] = df['ID'].astype(str).str.split('.').str[0].str.zfill(3)
+        df['ID'] = df['ID'].astype(str).split('.')[0].zfill(3) # Упрощенная логика ID
         photos = {}
         with zipfile.ZipFile("kuvat.zip") as z:
             for f_info in z.infolist():
@@ -111,10 +99,11 @@ def load_data():
                         photos[fname[:3]] = f.read()
         combined = []
         for _, row in df.iterrows():
-            if row['ID'] in photos:
+            clean_id = str(row['ID']).split('.')[0].zfill(3)
+            if clean_id in photos:
                 combined.append({
                     'ans': f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip(),
-                    'img': photos[row['ID']]
+                    'img': photos[clean_id]
                 })
         return combined
     except: return None
@@ -131,33 +120,35 @@ def next_q():
     st.session_state.item = random.choice(st.session_state.data)
     st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
-# --- ЭКРАН 1: ОБЛОЖКА ---
+# --- ИНТЕРФЕЙС ---
+
 if not st.session_state.started:
-    if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
-    elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
+    # Используем HTML для фото и центрирования кнопки
+    img_path = "cover.jpg" if os.path.exists("cover.jpg") else "cover.png"
+    if os.path.exists(img_path):
+        b64_cover = get_base64(img_path)
+        st.markdown(f'<img src="data:image/jpeg;base64,{b64_cover}" class="cover-img">', unsafe_allow_html=True)
     
-    # Кнопка СТАРТ через обертку для центрирования
-    st.markdown('<div class="start-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="center-wrapper">', unsafe_allow_html=True)
     if st.button("ALOITA HARJOITUS 🚀", type="primary"):
         st.session_state.started = True
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ЭКРАН 2: ТРЕНАЖЕР ---
 elif st.session_state.data:
     it = st.session_state.item
     st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 0;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
-    b64 = base64.b64encode(it['img']).decode()
+    b64_img = base64.b64encode(it['img']).decode()
     hint_html = ""
     if st.session_state.hint_letters > 0:
         txt = it['ans'][:st.session_state.hint_letters]
         suff = "..." if st.session_state.hint_letters < len(it['ans']) else ""
-        hint_html = f"<div class='hint-label'>{txt}{suff}</div>"
+        hint_html = f"<div style='position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:white; padding:5px 10px; border-radius:10px; border:2px solid #2e7d32; font-weight:bold; width:80%; text-align:center;'>{txt}{suff}</div>"
         
     st.markdown(f"""
-        <div class="image-box">
-            <img src="data:image/jpeg;base64,{b64}" class="main-img">
+        <div style="position: relative; text-align: center;">
+            <img src="data:image/jpeg;base64,{b64_img}" class="main-img">
             {hint_html}
         </div>
     """, unsafe_allow_html=True)
@@ -176,8 +167,7 @@ elif st.session_state.data:
                 time.sleep(1.2)
                 next_q()
                 st.rerun()
-            else:
-                st.error("Väärin! Korjaa или подсказка.")
+            else: st.error("Väärin!")
 
     with c2:
         if st.button("Vihje"):
