@@ -8,84 +8,51 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- ЖЕСТКИЙ CSS КОНТРОЛЬ ---
+# --- ГЕНЕРАЦИЯ КНОПОК-КАРТИНОК ЧЕРЕЗ CSS ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
-    
-    .main .block-container {
-        max-width: 500px !important;
-        padding: 1rem !important;
-        margin: 0 auto !important;
-    }
+    .main .block-container { max-width: 500px !important; padding: 1rem !important; margin: 0 auto !important; }
 
-    /* ФОТО: Всегда по центру и крупно */
-    .img-container {
-        display: flex;
-        justify-content: center;
-        position: relative;
-        margin-bottom: 20px;
-    }
-    .main-img {
-        border-radius: 15px;
-        width: 100%;
-        max-height: 50vh;
-        object-fit: contain;
-        background-color: #f8f9fa;
-    }
-
-    /* ФИКСИРОВАННЫЙ РЯД КНОПОК */
-    .button-row {
+    /* Контейнер для наших кнопок-картинок */
+    .img-button-row {
         display: flex !important;
-        flex-direction: row !important;
         justify-content: space-between !important;
-        gap: 8px !important;
-        width: 100% !important;
-        margin-top: 15px;
-    }
-    
-    /* Делаем так, чтобы кнопки Streamlit внутри нашего ряда вели себя правильно */
-    .button-row div {
-        flex: 1 !important;
+        gap: 10px !important;
+        margin-top: 20px !important;
     }
 
-    .stButton > button {
-        width: 100% !important;
-        height: 4em !important;
-        font-weight: bold !important;
-        border-radius: 12px !important;
-        border: 2px solid #2e7d32 !important;
-        font-size: 0.9rem !important;
-        background-color: white !important;
-        color: #2e7d32 !important;
-        white-space: normal !important; /* Разрешаем перенос, чтобы кнопка не сужалась */
-        line-height: 1.2;
-        padding: 2px !important;
-    }
-
-    /* Кнопка Старт */
-    button[kind="primary"] {
-        background-color: #2e7d32 !important;
+    /* Сама "кнопка" (теперь это картинка-блок) */
+    .fake-button {
+        flex: 1;
+        background-color: #2e7d32;
         color: white !important;
-        height: 70px !important;
-        font-size: 1.3rem !important;
+        text-align: center;
+        padding: 15px 5px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 14px;
+        text-decoration: none !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.1s;
+        border: none;
     }
+    .fake-button:active { transform: translateY(2px); box-shadow: none; }
 
-    .hint-label {
-        position: absolute;
-        bottom: 10px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.95);
-        padding: 6px 12px; border-radius: 10px;
-        font-weight: bold; border: 2px solid #2e7d32;
-        width: 80%; text-align: center;
+    .main-img { width: 100%; max-height: 400px; object-fit: contain; border-radius: 15px; background: #f0f0f0; }
+    
+    /* Кнопка Старт — оставим одну нормальную, она вроде не лагает */
+    div.stButton > button[kind="primary"] {
+        display: block !important; margin: 0 auto !important; width: 100% !important;
+        height: 70px !important; background-color: #2e7d32 !important; color: white !important;
+        border-radius: 20px !important; font-size: 1.5rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА ---
+# --- ЛОГИКА ЗАГРУЗКИ ---
 def load_data():
-    if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
-        return None
+    if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"): return None
     try:
         df = pd.read_excel("kasvit.xlsx")
         df.columns = [str(c).strip().upper() for c in df.columns]
@@ -95,18 +62,15 @@ def load_data():
             for f_info in z.infolist():
                 fname = f_info.filename.split('/')[-1]
                 if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    with z.open(f_info) as f:
-                        photos[fname[:3]] = f.read()
+                    with z.open(f_info) as f: photos[fname[:3]] = f.read()
         combined = []
         for _, row in df.iterrows():
             if row['ID'] in photos:
-                combined.append({
-                    'ans': f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip(),
-                    'img': photos[row['ID']]
-                })
+                combined.append({'ans': f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip(), 'img': photos[row['ID']]})
         return combined
     except: return None
 
+# --- СОСТОЯНИЕ ---
 if 'started' not in st.session_state: st.session_state.started = False
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
@@ -120,11 +84,8 @@ def next_q():
     st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
 # --- ЭКРАНЫ ---
-
 if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg")
-    elif os.path.exists("cover.png"): st.image("cover.png")
-    st.write(" ")
     if st.button("ALOITA HARJOITUS 🚀", type="primary"):
         st.session_state.started = True
         st.rerun()
@@ -134,41 +95,34 @@ elif st.session_state.data:
     st.markdown(f"<p style='text-align: center; font-weight: bold;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
     b64 = base64.b64encode(it['img']).decode()
-    hint_text = ""
+    st.markdown(f'<div style="text-align:center; position:relative;"><img src="data:image/jpeg;base64,{b64}" class="main-img">', unsafe_allow_html=True)
+    
     if st.session_state.hint_letters > 0:
         txt = it['ans'][:st.session_state.hint_letters]
-        suff = "..." if st.session_state.hint_letters < len(it['ans']) else ""
-        hint_text = f"<div class='hint-label'>{txt}{suff}</div>"
-        
-    st.markdown(f"""
-        <div class="img-container">
-            <img src="data:image/jpeg;base64,{b64}" class="main-img">
-            {hint_text}
-        </div>
-    """, unsafe_allow_html=True)
+        st.markdown(f"<div style='position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:white; padding:5px 10px; border-radius:10px; border:2px solid #2e7d32; font-weight:bold; width:80%;'>{txt}...</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="off")
+    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Kirjoita nimi...")
 
-    # ВМЕСТО st.columns ИСПОЛЬЗУЕМ СВОЙ КОНТЕЙНЕР
-    st.markdown('<div class="button-row">', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3) # Внутри CSS мы заставим их не схлопываться
-    with c1:
+    # РЯД КНОПОК ЧЕРЕЗ СТАНДАРТНЫЙ STREAMLIT, НО С ОБМАННЫМ МАНЕВРОМ
+    # Мы используем st.columns, но CSS сверху (.img-button-row) принудительно держит их в ряд!
+    st.markdown('<div class="img-button-row">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
         if st.button("Tarkista"):
             st.session_state.total += 1
             if ans.lower().strip() == it['ans'].lower():
                 st.session_state.score += 1
                 st.balloons()
-                st.success("Oikein!")
                 time.sleep(1)
                 next_q()
                 st.rerun()
             else: st.error("Väärin!")
-    with c2:
+    with col2:
         if st.button("Vihje"):
-            if st.session_state.hint_letters < len(it['ans']):
-                st.session_state.hint_letters += 1
-                st.rerun()
-    with c3:
+            st.session_state.hint_letters += 1
+            st.rerun()
+    with col3:
         if st.button("Luovuta"):
             st.session_state.show_ans = True
     st.markdown('</div>', unsafe_allow_html=True)
