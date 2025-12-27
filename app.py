@@ -6,39 +6,47 @@ import os
 import base64
 import time
 
-# 1. Базовые настройки
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# 2. Чистый и стабильный CSS
+# --- СТРОГИЙ CSS ДЛЯ КОМПАКТНОСТИ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
-    .block-container { padding-top: 1rem; max-width: 500px; }
-
-    /* Кнопка на обложке: Большая и по центру */
-    .stButton > button[kind="primary"] {
-        display: block;
-        margin: 0 auto;
-        width: 100% !important;
-        height: 80px !important;
-        font-size: 1.5em !important;
-        background-color: #2e7d32 !important;
-        color: white !important;
-        border-radius: 20px !important;
+    
+    /* Ограничиваем ширину всего контента для телефона и компа */
+    .block-container { 
+        padding-top: 1rem !important; 
+        max-width: 450px !important; 
+        margin: 0 auto !important;
     }
 
-    /* ФИКС КНОПОК: Только в один ряд */
+    /* Кнопка на обложке */
+    div.stButton > button[kind="primary"] {
+        width: 100% !important;
+        height: 70px !important;
+        font-size: 1.4em !important;
+        background-color: #2e7d32 !important;
+        color: white !important;
+        border-radius: 15px !important;
+        margin-top: 20px !important;
+    }
+
+    /* ФИКС КНОПОК: Убираем гигантские разрывы */
     [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 5px !important;
+        gap: 8px !important; /* Фиксированный зазор между кнопками */
+        width: 100% !important;
     }
+    
     [data-testid="column"] {
-        width: 33% !important;
         flex: 1 1 0% !important;
         min-width: 0px !important;
+        padding: 0 !important; /* КЛЮЧЕВОЕ: Убираем отступы внутри колонок */
+        margin: 0 !important;
     }
+
     .stButton > button {
         width: 100% !important;
         height: 3.5em !important;
@@ -46,6 +54,7 @@ st.markdown("""
         border-radius: 10px !important;
         border: 2px solid #2e7d32 !important;
         font-size: 0.85em !important;
+        padding: 0 !important;
     }
 
     /* Картинка */
@@ -58,7 +67,6 @@ st.markdown("""
     }
     .image-box { position: relative; width: 100%; text-align: center; margin-bottom: 10px;}
     
-    /* Подсказка поверх фото */
     .hint-label {
         position: absolute;
         bottom: 10px; left: 50%; transform: translateX(-50%);
@@ -70,7 +78,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Логика загрузки
+# --- ЛОГИКА ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
@@ -95,7 +103,6 @@ def load_data():
         return combined
     except: return None
 
-# 4. Состояние сессии
 if 'started' not in st.session_state: st.session_state.started = False
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
@@ -108,22 +115,20 @@ def next_q():
     st.session_state.item = random.choice(st.session_state.data)
     st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
-# --- ИНТЕРФЕЙС ---
-
+# --- ЭКРАН 1: ОБЛОЖКА ---
 if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
     elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
-    # Кнопка СТАРТ (Primary делает её зеленой и большой по CSS)
     if st.button("ALOITA HARJOITUS 🚀", type="primary"):
         st.session_state.started = True
         st.rerun()
 
+# --- ЭКРАН 2: ТРЕНАЖЕР ---
 elif st.session_state.data:
     it = st.session_state.item
     st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 0;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
-    # Фото и подсказка
     b64 = base64.b64encode(it['img']).decode()
     hint_html = ""
     if st.session_state.hint_letters > 0:
@@ -138,16 +143,8 @@ elif st.session_state.data:
         </div>
     """, unsafe_allow_html=True)
 
-    # Поле ввода (autocomplete="one-time-code" отключает словари на iPhone/Android)
-    ans = st.text_input(
-        "Vastaus", 
-        key=f"v_{st.session_state.widget_key}", 
-        label_visibility="collapsed",
-        placeholder="Nimi Latina...",
-        autocomplete="one-time-code"
-    )
+    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="one-time-code")
 
-    # Кнопки
     c1, c2, c3 = st.columns(3)
     
     with c1:
@@ -161,7 +158,7 @@ elif st.session_state.data:
                 next_q()
                 st.rerun()
             else:
-                st.error("Väärin! Korjaa или используй подсказку.")
+                st.error("Väärin!")
 
     with c2:
         if st.button("Vihje"):
@@ -169,7 +166,7 @@ elif st.session_state.data:
                 st.session_state.hint_letters += 1
                 st.rerun()
 
-    with col3 if 'col3' in locals() else c3: # Безопасный вызов колонки
+    with c3:
         if st.button("Luovuta"):
             st.session_state.show_ans = True
 
