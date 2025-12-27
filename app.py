@@ -8,19 +8,20 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- СТРОГИЙ CSS ДЛЯ КОМПАКТНОСТИ ---
+# --- СИЛОВОЙ CSS ДЛЯ УДАЛЕНИЯ ПУСТОТЫ ---
 st.markdown("""
     <style>
+    /* 1. Убираем ВСЕ внешние отступы самого контейнера Streamlit */
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Ограничиваем ширину всего контента для телефона и компа */
-    .block-container { 
-        padding-top: 1rem !important; 
-        max-width: 450px !important; 
-        margin: 0 auto !important;
+    .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 1rem !important;
     }
 
-    /* Кнопка на обложке */
+    /* 2. Кнопка на обложке: на всю доступную ширину */
     div.stButton > button[kind="primary"] {
         width: 100% !important;
         height: 70px !important;
@@ -28,36 +29,29 @@ st.markdown("""
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 15px !important;
-        margin-top: 20px !important;
+        margin: 0 auto !important;
     }
 
-    /* ФИКС КНОПОК: Убираем гигантские разрывы */
+    /* 3. Кнопки в ряд: убираем лишние зазоры между колонками */
     [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 8px !important; /* Фиксированный зазор между кнопками */
-        width: 100% !important;
+        gap: 8px !important; /* Узкий зазор между кнопками */
     }
     
     [data-testid="column"] {
-        flex: 1 1 0% !important;
-        min-width: 0px !important;
-        padding: 0 !important; /* КЛЮЧЕВОЕ: Убираем отступы внутри колонок */
+        padding: 0 !important;
         margin: 0 !important;
     }
 
     .stButton > button {
         width: 100% !important;
-        height: 3.5em !important;
+        height: 3.8em !important;
         font-weight: bold !important;
         border-radius: 10px !important;
         border: 2px solid #2e7d32 !important;
-        font-size: 0.85em !important;
-        padding: 0 !important;
+        font-size: 0.9em !important;
     }
 
-    /* Картинка */
+    /* 4. Картинка */
     .main-img {
         border-radius: 15px;
         width: 100%;
@@ -78,7 +72,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА ---
+# --- ЛОГИКА (БЕЗ ИЗМЕНЕНИЙ) ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
@@ -120,6 +114,7 @@ if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
     elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
+    st.write(" ")
     if st.button("ALOITA HARJOITUS 🚀", type="primary"):
         st.session_state.started = True
         st.rerun()
