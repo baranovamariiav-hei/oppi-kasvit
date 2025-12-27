@@ -4,61 +4,46 @@ import random
 import zipfile
 import io
 import time
+import os
 
-# Настройка страницы
 st.set_page_config(page_title="Kasvioppi Treenaaja", layout="centered")
 
-# Дизайн
+# Дизайн остается прежним
 st.markdown("""
     <style>
     .main { background-color: #f7f9f7; }
     .stButton>button { 
-        width: 100%; 
-        border-radius: 15px; 
-        height: 3.5em; 
-        background-color: #e8f5e9; 
-        border: 2px solid #2e7d32; 
-        color: #2e7d32; 
-        font-weight: bold; 
+        width: 100%; border-radius: 15px; height: 3.5em; 
+        background-color: #e8f5e9; border: 2px solid #2e7d32; 
+        color: #2e7d32; font-weight: bold; 
     }
     .stButton>button:hover { background-color: #2e7d32; color: white; }
     img { border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 20px; }
     .stat-box { padding: 10px; border-radius: 10px; background-color: white; border: 1px solid #eee; margin-bottom: 10px; text-align: center; }
     .hint-box { 
-        padding: 15px; 
-        background-color: #fff9c4; 
-        border-left: 5px solid #fbc02d; 
-        border-radius: 5px; 
-        margin-bottom: 20px;
-        font-size: 1.1em;
-        font-weight: bold;
-        color: #5d4037;
+        padding: 15px; background-color: #fff9c4; border-left: 5px solid #fbc02d; 
+        border-radius: 5px; margin-bottom: 20px; font-size: 1.1em; font-weight: bold; color: #5d4037;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# Инициализация переменных
-if 'data' not in st.session_state:
-    st.session_state.data = None
-    st.session_state.current_item = None
-    st.session_state.score = 0
-    st.session_state.total = 0
-    st.session_state.show_answer = False
-    st.session_state.hint_letters = 0
-    st.session_state.widget_key = 0
+# --- ЛОГИКА АВТОЗАГРУЗКИ ---
+@st.cache_data # Чтобы не перечитывать файлы при каждом клике
+def load_data_auto():
+    # УКАЖИТЕ ТУТ ТОЧНЫЕ ИМЕНА ВАШИХ ФАЙЛОВ
+    excel_name = "kasvit.xlsx" 
+    zip_name = "kuvat.zip"
+    
+    if not os.path.exists(excel_name) or not os.path.exists(zip_name):
+        return None, "Tiedostoja ei löydy GitHubista!"
 
-def load_data(table_file, zip_file):
     try:
-        if table_file.name.endswith('.csv'):
-            df = pd.read_csv(table_file)
-        else:
-            df = pd.read_excel(table_file)
-        
+        df = pd.read_excel(excel_name)
         df.columns = [str(c).strip().upper() for c in df.columns]
         df['ID'] = df['ID'].astype(str).str.split('.').str[0].str.zfill(3)
         
         photos = {}
-        with zipfile.ZipFile(zip_file) as z:
+        with zipfile.ZipFile(zip_name) as z:
             for file_info in z.infolist():
                 fname = file_info.filename.split('/')[-1]
                 if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -71,15 +56,24 @@ def load_data(table_file, zip_file):
             curr_id = row['ID']
             if curr_id in photos:
                 full_name = f"{str(row['NIMI']).strip()} {str(row.get('LATINA', '')).strip()}".strip()
-                combined.append({
-                    'id': curr_id,
-                    'full_answer': full_name,
-                    'image': photos[curr_id]
-                })
-        return combined
+                combined.append({'id': curr_id, 'full_answer': full_name, 'image': photos[curr_id]})
+        return combined, None
     except Exception as e:
-        st.error(f"Virhe: {e}")
-        return None
+        return None, str(e)
+
+# Инициализация сессии
+if 'data' not in st.session_state:
+    data, error = load_data_auto()
+    if data:
+        st.session_state.data = data
+        st.session_state.current_item = random.choice(data)
+    else:
+        st.error(f"Virhe: {error}. Tarkista että tiedostot ovat GitHubissa.")
+    st.session_state.score = 0
+    st.session_state.total = 0
+    st.session_state.show_answer = False
+    st.session_state.hint_letters = 0
+    st.session_state.widget_key = 0
 
 def next_question():
     if st.session_state.data:
@@ -88,35 +82,16 @@ def next_question():
         st.session_state.hint_letters = 0
         st.session_state.widget_key += 1
 
-# --- SIVUPALKKI ---
-with st.sidebar:
-    st.header("⚙️ Asetukset")
-    t_file = st.file_uploader("1. Lataa Excel", type=['xlsx', 'csv'])
-    p_file = st.file_uploader("2. Lataa kuvat (ZIP)", type=['zip'])
-    
-    if st.button("🚀 Aloita harjoitus"):
-        if t_file and p_file:
-            loaded = load_data(t_file, p_file)
-            if loaded:
-                st.session_state.data = loaded
-                st.session_state.score = 0
-                st.session_state.total = 0
-                next_question()
-                st.rerun()
-
-# --- PÄÄNÄYTTÖ ---
+# --- ГЛАВНЫЙ ЭКРАН ---
 st.title("🌿 Kasvioppi: Treenaaja")
 
-if st.session_state.current_item:
+if st.session_state.get('current_item'):
     item = st.session_state.current_item
-    
     st.markdown(f"<div class='stat-box'><b>Pisteet:</b> {st.session_state.score} / {st.session_state.total}</div>", unsafe_allow_html=True)
     st.image(item['image'], use_container_width=True)
     
-    # ПОДСКАЗКА С УМНЫМ МНОГОТОЧИЕМ
     if st.session_state.hint_letters > 0:
         hint_text = item['full_answer'][:st.session_state.hint_letters]
-        # Если открыты не все буквы, добавляем многоточие
         suffix = "..." if st.session_state.hint_letters < len(item['full_answer']) else ""
         st.markdown(f"<div class='hint-box'>Vihje: {hint_text}{suffix}</div>", unsafe_allow_html=True)
 
@@ -128,14 +103,14 @@ if st.session_state.current_item:
         if ans.lower() == item['full_answer'].lower():
             st.session_state.score += 1
             st.session_state.total += 1
-            st.balloons() # ЗАПУСКАЕМ ШАРИКИ
-            st.success("Oikein!") 
-            time.sleep(1.5) # Даем 1.5 секунды полюбоваться шариками
+            st.balloons()
+            st.success("Oikein!")
+            time.sleep(1.2)
             next_question()
             st.rerun()
         else:
             st.session_state.total += 1
-            st.error("Väärin! Yritä uudelleen tai katсо vihje.")
+            st.error("Väärin!")
 
     if col2.button("Vihje"):
         if st.session_state.hint_letters < len(item['full_answer']):
@@ -148,8 +123,7 @@ if st.session_state.current_item:
     if st.session_state.show_answer:
         st.warning(f"Oikea vastaus: **{item['full_answer']}**")
         if st.button("Seuraava →"):
-            st.session_state.total += 1
             next_question()
             st.rerun()
 else:
-    st.info("Lataa tiedostot vasemmalta aloittaaksesi.")
+    st.warning("Lataa tiedostot (kasvit.xlsx ja kuvat.zip) GitHub-kansioon.")
