@@ -8,80 +8,86 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- ГЛОБАЛЬНЫЕ СТИЛИ ---
+# --- ФИНАЛЬНЫЙ ДИЗАЙН ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
-    .block-container { padding-top: 1rem; max-width: 500px; margin: 0 auto; }
     
-    /* Кнопка на обложке: Огромная, зеленая, по центру */
-    div.stButton > button#start_btn {
-        display: block;
-        margin: 0 auto;
-        width: 100% !important;
-        height: 100px !important;
-        font-size: 1.8em !important;
+    /* Убираем гигантские поля по бокам */
+    .block-container { 
+        padding-top: 1rem !important; 
+        padding-left: 0.5rem !important; 
+        padding-right: 0.5rem !important; 
+        max-width: 100% !important; 
+    }
+
+    /* Кнопка на обложке: ГАРАНТИРОВАННЫЙ ЦЕНТР */
+    div.stButton {
+        text-align: center !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    
+    button[kind="primary"], button[key="start_btn"] {
+        width: 90% !important;
+        height: 80px !important;
+        font-size: 1.5em !important;
         background-color: #2e7d32 !important;
         color: white !important;
         border-radius: 20px !important;
-        border: none !important;
+        margin: 0 auto !important;
+        display: block !important;
     }
 
-    /* ФИКС КНОПОК: Жесткий ряд через Flexbox */
-    .button-group {
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        gap: 5px !important;
-        width: 100% !important;
-    }
-    
-    /* Чтобы стандартные колонки Streamlit не схлопывались в столбик */
-    [data-testid="column"] {
-        width: 32% !important;
-        flex: 1 1 0% !important;
-        min-width: 0px !important;
-    }
+    /* КНОПКИ В РЯД БЕЗ ДЫРОК */
     [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        align-items: center !important;
+        gap: 5px !important; /* Расстояние между кнопками */
+        justify-content: center !important;
+    }
+    
+    [data-testid="column"] {
+        width: 32% !important;
+        flex: 1 1 0% !important;
+        min-width: 0px !important;
+        padding: 0 !important; /* Убираем внутренние поля колонок */
     }
 
     .stButton > button {
         width: 100% !important;
         height: 3.5em !important;
         font-weight: bold !important;
-        font-size: 0.8em !important;
+        font-size: 0.85em !important;
         border-radius: 10px !important;
-        white-space: nowrap !important;
+        border: 2px solid #2e7d32 !important;
     }
 
     /* Оформление фото */
     .main-img {
         border-radius: 15px;
         width: 100%;
-        max-height: 40vh;
+        max-height: 45vh;
         object-fit: contain;
-        background-color: #f9f9f9;
+        background-color: #f0f0f0;
         margin-bottom: 5px;
     }
 
-    /* Подсказка поверх фото */
     .image-box { position: relative; width: 100%; text-align: center; }
+    
     .hint-label {
         position: absolute;
         bottom: 10px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.9);
-        padding: 5px 15px; border-radius: 15px;
-        font-weight: bold; font-size: 0.9em; width: 85%;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 5px 10px; border-radius: 12px;
+        font-weight: bold; font-size: 0.9em; width: 80%;
         border: 2px solid #2e7d32; color: #2e7d32;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ЛОГИКА ---
+# --- ЛОГИКА (БЕЗ ИЗМЕНЕНИЙ) ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
@@ -124,8 +130,9 @@ if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
     elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
-    # Кнопка СТАРТ (ID для CSS)
-    if st.button("ALOITA HARJOITUS 🚀", key="start_btn"):
+    st.write(" ")
+    # Кнопка СТАРТ
+    if st.button("ALOITA HARJOITUS 🚀", key="start_btn", type="primary"):
         st.session_state.started = True
         st.rerun()
 
@@ -148,49 +155,51 @@ elif st.session_state.data:
         </div>
     """, unsafe_allow_html=True)
 
-    # ПОЛЕ ВВОДА: Блокируем автозаполнение через атрибуты
+    # ПОЛЕ ВВОДА
     ans = st.text_input(
         "Vastaus", 
         key=f"v_{st.session_state.widget_key}", 
         label_visibility="collapsed",
-        placeholder="Nimi Latina...",
-        autocomplete="off" # Попытка №1
+        placeholder="Kirjoita nimi ja latina..."
     )
-    # Дополнительная защита от автозаполнения через JS-скрипт (инъекция в HTML)
+    
+    # JS для блокировки автозаполнения
     st.components.v1.html(f"""
         <script>
             var inputs = window.parent.document.querySelectorAll('input');
             inputs.forEach(input => {{
-                input.setAttribute('autocomplete', 'off');
+                input.setAttribute('autocomplete', 'new-password');
                 input.setAttribute('autocorrect', 'off');
-                input.setAttribute('autocapitalize', 'off');
                 input.setAttribute('spellcheck', 'false');
             }});
         </script>
     """, height=0)
 
-    # КНОПКИ В РЯД
+    # КНОПКИ
     col1, col2, col3 = st.columns(3)
     
-    if col1.button("Tarkista"):
-        st.session_state.total += 1
-        if ans.lower().strip() == it['ans'].lower():
-            st.session_state.score += 1
-            st.balloons()
-            st.markdown("<p style='text-align: center; color: green; font-weight: bold;'>Oikein!</p>", unsafe_allow_html=True)
-            time.sleep(1.5)
-            next_q()
-            st.rerun()
-        else:
-            st.markdown("<p style='text-align: center; color: red; font-weight: bold;'>Väärin! Korjaa tai katso vihje.</p>", unsafe_allow_html=True)
+    with col1:
+        if st.button("Tarkista"):
+            st.session_state.total += 1
+            if ans.lower().strip() == it['ans'].lower():
+                st.session_state.score += 1
+                st.balloons()
+                st.markdown("<p style='text-align: center; color: green; font-weight: bold;'>Oikein!</p>", unsafe_allow_html=True)
+                time.sleep(1.5)
+                next_q()
+                st.rerun()
+            else:
+                st.markdown("<p style='text-align: center; color: red; font-weight: bold;'>Väärin! Yritä uudelleen.</p>", unsafe_allow_html=True)
 
-    if col2.button("Vihje"):
-        if st.session_state.hint_letters < len(it['ans']):
-            st.session_state.hint_letters += 1
-            st.rerun()
+    with col2:
+        if st.button("Vihje"):
+            if st.session_state.hint_letters < len(it['ans']):
+                st.session_state.hint_letters += 1
+                st.rerun()
 
-    if col3.button("Luovuta"):
-        st.session_state.show_ans = True
+    with col3:
+        if st.button("Luovuta"):
+            st.session_state.show_ans = True
 
     if st.session_state.get('show_ans'):
         st.info(f"Oikea: {it['ans']}")
