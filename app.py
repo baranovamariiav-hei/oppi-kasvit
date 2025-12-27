@@ -8,40 +8,45 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- РАДИКАЛЬНЫЙ CSS ДЛЯ ВОЗВРАТА РАЗМЕРОВ ---
+# --- ЖЕСТКИЙ CSS КОНТРОЛЬ ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Расширяем основной контейнер, чтобы он не был узким */
     .main .block-container {
-        max-width: 600px !important;
-        padding: 1rem 0.5rem !important;
+        max-width: 500px !important;
+        padding: 1rem !important;
         margin: 0 auto !important;
     }
 
-    /* ФОТО: Крупное и четкое */
-    [data-testid="stImage"] img, .main-img {
+    /* ФОТО: Всегда по центру и крупно */
+    .img-container {
+        display: flex;
+        justify-content: center;
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .main-img {
         border-radius: 15px;
-        width: 100% !important;
-        height: auto !important;
-        max-height: 55vh !important;
+        width: 100%;
+        max-height: 50vh;
         object-fit: contain;
+        background-color: #f8f9fa;
     }
 
-    /* ГЕОМЕТРИЯ КНОПОК: ЖЕСТКИЙ РЯД */
-    div[data-testid="stHorizontalBlock"] {
+    /* ФИКСИРОВАННЫЙ РЯД КНОПОК */
+    .button-row {
         display: flex !important;
         flex-direction: row !important;
         justify-content: space-between !important;
-        gap: 5px !important;
+        gap: 8px !important;
         width: 100% !important;
+        margin-top: 15px;
     }
     
-    div[data-testid="column"] {
+    /* Делаем так, чтобы кнопки Streamlit внутри нашего ряда вели себя правильно */
+    .button-row div {
         flex: 1 !important;
-        width: 32% !important; /* Каждая кнопка на треть экрана */
-        min-width: 0px !important;
     }
 
     .stButton > button {
@@ -50,23 +55,29 @@ st.markdown("""
         font-weight: bold !important;
         border-radius: 12px !important;
         border: 2px solid #2e7d32 !important;
-        font-size: 1rem !important; /* Увеличил шрифт */
+        font-size: 0.9rem !important;
         background-color: white !important;
         color: #2e7d32 !important;
-        padding: 0 !important;
+        white-space: normal !important; /* Разрешаем перенос, чтобы кнопка не сужалась */
+        line-height: 1.2;
+        padding: 2px !important;
     }
 
-    /* Кнопка Старт на весь экран */
+    /* Кнопка Старт */
     button[kind="primary"] {
         background-color: #2e7d32 !important;
         color: white !important;
         height: 70px !important;
+        font-size: 1.3rem !important;
     }
 
-    /* Поле ввода: крупнее */
-    .stTextInput input {
-        height: 50px !important;
-        font-size: 1.1rem !important;
+    .hint-label {
+        position: absolute;
+        bottom: 10px; left: 50%; transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 6px 12px; border-radius: 10px;
+        font-weight: bold; border: 2px solid #2e7d32;
+        width: 80%; text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,34 +120,38 @@ def next_q():
     st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
 # --- ЭКРАНЫ ---
+
 if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg")
     elif os.path.exists("cover.png"): st.image("cover.png")
+    st.write(" ")
     if st.button("ALOITA HARJOITUS 🚀", type="primary"):
         st.session_state.started = True
         st.rerun()
 
 elif st.session_state.data:
     it = st.session_state.item
-    st.markdown(f"<p style='text-align: center; font-weight: bold; font-size: 1.2rem;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; font-weight: bold;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
     b64 = base64.b64encode(it['img']).decode()
-    hint_html = ""
+    hint_text = ""
     if st.session_state.hint_letters > 0:
         txt = it['ans'][:st.session_state.hint_letters]
         suff = "..." if st.session_state.hint_letters < len(it['ans']) else ""
-        hint_html = f"<div style='position:absolute; bottom:15px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.9); padding:8px 15px; border-radius:12px; border:2px solid #2e7d32; font-weight:bold; width:80%; text-align:center; z-index:10;'>{txt}{suff}</div>"
+        hint_text = f"<div class='hint-label'>{txt}{suff}</div>"
         
     st.markdown(f"""
-        <div style="position: relative; text-align: center; width: 100%;">
+        <div class="img-container">
             <img src="data:image/jpeg;base64,{b64}" class="main-img">
-            {hint_html}
+            {hint_text}
         </div>
     """, unsafe_allow_html=True)
 
     ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="off")
 
-    c1, c2, c3 = st.columns(3)
+    # ВМЕСТО st.columns ИСПОЛЬЗУЕМ СВОЙ КОНТЕЙНЕР
+    st.markdown('<div class="button-row">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3) # Внутри CSS мы заставим их не схлопываться
     with c1:
         if st.button("Tarkista"):
             st.session_state.total += 1
@@ -156,6 +171,7 @@ elif st.session_state.data:
     with c3:
         if st.button("Luovuta"):
             st.session_state.show_ans = True
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.get('show_ans'):
         st.info(f"Oikea: {it['ans']}")
