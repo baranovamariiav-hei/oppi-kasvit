@@ -8,63 +8,78 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- ЖЕСТКИЙ CSS ДЛЯ ФИКСАЦИИ РЯДА ---
+# --- ФИНАЛЬНЫЙ CSS ПОСЛЕ ПОБЕДЫ НАД GRID ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
     
-    /* Убираем внешние отступы */
+    /* Базовый контейнер */
     .main .block-container {
-        max-width: 100% !important;
-        padding: 1rem 0.5rem !important;
+        max-width: 500px !important;
+        padding: 1.5rem 1rem !important;
         margin: 0 auto !important;
     }
 
+    /* ФИКС КАРТИНКИ НА ЗАСТАВКЕ */
+    [data-testid="stImage"] img {
+        max-height: 350px !important;
+        width: auto !important;
+        margin: 0 auto !important;
+        display: block !important;
+        border-radius: 20px;
+    }
+
     /* ЦЕНТРИРОВАНИЕ КНОПКИ СТАРТ */
-    .stButton {
-        display: flex;
-        justify-content: center;
+    [data-testid="stVerticalBlock"] > div:has(button[kind="primary"]) {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
     }
     
     button[kind="primary"] {
-        width: 90% !important;
+        width: 100% !important;
+        max-width: 300px !important;
         height: 70px !important;
         font-size: 1.4em !important;
         background-color: #2e7d32 !important;
         color: white !important;
-        border-radius: 15px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
     }
 
-    /* ЖЕСТКИЙ РЯД КНОПОК (GRID) */
+    /* ЖЕСТКИЙ РЯД КНОПОК ОДИНАКОВОЙ ШИРИНЫ */
     [data-testid="stHorizontalBlock"] {
         display: grid !important;
-        grid-template-columns: 1fr 1fr 1fr !important; /* Ровно 3 колонки всегда! */
-        gap: 6px !important;
-        align-items: center !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 10px !important;
+        width: 100% !important;
+        margin-top: 10px !important;
     }
     
     [data-testid="column"] {
         width: 100% !important;
     }
 
-    .stButton > button {
+    .stButton > button:not([kind="primary"]) {
         width: 100% !important;
         height: 3.5em !important;
         font-weight: bold !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         border: 2px solid #2e7d32 !important;
-        font-size: 0.8em !important;
-        padding: 0 !important;
+        font-size: 0.85em !important;
+        padding: 0 5px !important; /* Вернул внутренний отступ */
         white-space: nowrap !important;
+        background-color: white !important;
     }
 
-    /* Картинка и подсказка */
+    /* Оформление фото в игре */
     .main-img {
         border-radius: 15px;
         width: 100%;
         max-height: 45vh;
         object-fit: contain;
-        background-color: #f0f0f0;
+        background-color: #f8f9fa;
+        border: 1px solid #eee;
     }
     .image-box { position: relative; width: 100%; text-align: center; margin-bottom: 10px;}
     
@@ -72,9 +87,10 @@ st.markdown("""
         position: absolute;
         bottom: 10px; left: 50%; transform: translateX(-50%);
         background: rgba(255, 255, 255, 0.95);
-        padding: 4px 8px; border-radius: 10px;
-        font-weight: bold; font-size: 0.85em; width: 85%;
-        border: 1px solid #2e7d32; color: #2e7d32;
+        padding: 6px 12px; border-radius: 12px;
+        font-weight: bold; font-size: 0.9em; width: 85%;
+        border: 2px solid #2e7d32; color: #2e7d32;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -118,11 +134,14 @@ def next_q():
 
 # --- ЭКРАН 1: ОБЛОЖКА ---
 if not st.session_state.started:
-    if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
-    elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
+    # Центрированное изображение обложки
+    if os.path.exists("cover.jpg"): st.image("cover.jpg")
+    elif os.path.exists("cover.png"): st.image("cover.png")
     
-    st.write(" ")
-    if st.button("ALOITA HARJOITUS 🚀", type="primary"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Кнопка СТАРТ
+    if st.button("ALOITA HARJOITUS 🚀", type="primary", use_container_width=False):
         st.session_state.started = True
         st.rerun()
 
@@ -145,9 +164,10 @@ elif st.session_state.data:
         </div>
     """, unsafe_allow_html=True)
 
-    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina...", autocomplete="one-time-code")
+    # Поле ввода без подсказок
+    ans = st.text_input("Vastaus", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Название...", autocomplete="one-time-code")
 
-    # СЮДА ПРИМЕНИТСЯ GRID ИЗ CSS
+    # Сетка кнопок
     c1, c2, c3 = st.columns(3)
     
     with c1:
