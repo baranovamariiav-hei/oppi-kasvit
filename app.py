@@ -8,72 +8,75 @@ import time
 
 st.set_page_config(page_title="Kasvioppi", layout="centered")
 
-# --- СТИЛИ (CSS) ---
+# --- СУПЕР-СТИЛИ (CSS) ---
 st.markdown("""
     <style>
     header, footer, #MainMenu {visibility: hidden;}
-    .block-container { padding-top: 1rem; max-width: 500px; }
+    .block-container { padding-top: 1rem; max-width: 500px; margin: 0 auto; }
     
-    /* Кнопка на обложке большая */
-    .stButton>button {
-        width: 100%;
-        border-radius: 12px;
-        height: 3.8em;
-        font-weight: bold;
-        font-size: 1.1em;
+    /* Большая кнопка старта по центру */
+    .start-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    .big-btn {
+        width: 80% !important;
+        height: 80px !important;
+        font-size: 1.5em !important;
+        background-color: #2e7d32 !important;
+        color: white !important;
+        border-radius: 20px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
     }
 
-    /* Фото и подсказка */
-    .image-container {
-        position: relative;
-        text-align: center;
-        margin-bottom: 10px;
+    /* ФИКС КНОПОК: всегда в один ряд */
+    .button-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 5px;
+        margin-top: 10px;
     }
+    .game-btn {
+        flex: 1;
+        height: 50px;
+        border-radius: 10px;
+        border: 2px solid #2e7d32;
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        font-weight: bold;
+        font-size: 0.9em;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Картинка и подсказка */
+    .image-container { position: relative; text-align: center; margin-bottom: 5px; }
     .main-img {
         border-radius: 15px;
         width: 100%;
-        max-height: 42vh;
+        max-height: 40vh;
         object-fit: contain;
         background-color: #f9f9f9;
     }
     .hint-overlay {
         position: absolute;
-        bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: rgba(255, 249, 196, 0.95);
-        padding: 5px 15px;
-        border-radius: 15px;
-        font-weight: bold;
-        font-size: 0.9em;
-        width: 85%;
-        border: 1px solid #fbc02d;
-        color: #5d4037;
+        bottom: 8px; left: 50%; transform: translateX(-50%);
+        background: rgba(255, 249, 196, 0.95);
+        padding: 4px 12px; border-radius: 12px;
+        font-weight: bold; font-size: 0.85em; width: 85%;
+        border: 1px solid #fbc02d; color: #5d4037; z-index: 10;
     }
-
-    /* Кнопки в ряд на мобильном */
-    [data-testid="column"] {
-        width: 33.33% !important;
-        flex: 1 1 0% !important;
-        min-width: 0px !important;
-    }
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-    }
-
-    /* Центрированные сообщения */
-    .status-box {
-        text-align: center;
-        padding: 10px;
-        border-radius: 10px;
-        margin-top: 10px;
-        font-weight: bold;
-    }
+    
+    .status-box { text-align: center; padding: 10px; border-radius: 10px; margin-top: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ФУНКЦИИ ---
+# --- ЛОГИКА ---
 def load_data():
     if not os.path.exists("kasvit.xlsx") or not os.path.exists("kuvat.zip"):
         return None
@@ -98,9 +101,7 @@ def load_data():
         return combined
     except: return None
 
-# --- СОСТОЯНИЕ (Session State) ---
-if 'started' not in st.session_state:
-    st.session_state.started = False
+if 'started' not in st.session_state: st.session_state.started = False
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
     st.session_state.score, st.session_state.total = 0, 0
@@ -110,27 +111,23 @@ if 'item' not in st.session_state and st.session_state.data:
 
 def next_q():
     st.session_state.item = random.choice(st.session_state.data)
-    st.session_state.hint_letters = 0
-    st.session_state.widget_key += 1
+    st.session_state.hint_letters, st.session_state.widget_key = 0, st.session_state.widget_key + 1
 
 # --- ИНТЕРФЕЙС ---
 
-# 1. ОБЛОЖКА
 if not st.session_state.started:
     if os.path.exists("cover.jpg"): st.image("cover.jpg", use_container_width=True)
     elif os.path.exists("cover.png"): st.image("cover.png", use_container_width=True)
     
-    st.write(" ") # Пробел
-    col_l, col_m, col_r = st.columns([1, 4, 1])
-    with col_m:
-        if st.button("ALOITA 🚀"):
-            st.session_state.started = True
-            st.rerun()
+    # Большая кнопка СТАРТ по центру
+    st.write("")
+    if st.button("ALOITA HARJOITUS 🚀", key="start_btn", type="primary"):
+        st.session_state.started = True
+        st.rerun()
 
-# 2. ИГРА
 elif st.session_state.data:
     it = st.session_state.item
-    st.markdown(f"<p style='text-align: center; font-weight: bold;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; font-weight: bold; margin-bottom: 5px;'>Pisteet: {st.session_state.score} / {st.session_state.total}</p>", unsafe_allow_html=True)
     
     # Картинка
     b64 = base64.b64encode(it['img']).decode()
@@ -147,23 +144,30 @@ elif st.session_state.data:
         </div>
     """, unsafe_allow_html=True)
 
-    # Поле ввода
-    ans = st.text_input("Vastaus:", key=f"v_{st.session_state.widget_key}", label_visibility="collapsed", placeholder="Nimi Latina")
+    # ПОЛЕ ВВОДА С ОТКЛЮЧЕННЫМ АВТОЗАПОЛНЕНИЕМ
+    # Мы используем кастомный HTML для внедрения атрибутов
+    ans = st.text_input(
+        "Vastaus:", 
+        key=f"v_{st.session_state.widget_key}", 
+        label_visibility="collapsed", 
+        placeholder="Nimi Latina",
+        autocomplete="new-password" # Трюк для обмана автозаполнения
+    )
 
-    # Кнопки
+    # КНОПКИ (используем стандартные колонки, но с усиленным CSS выше)
     c1, c2, c3 = st.columns(3)
     
     if c1.button("Tarkista"):
         st.session_state.total += 1
-        if ans.lower() == it['ans'].lower():
+        if ans.lower().strip() == it['ans'].lower():
             st.session_state.score += 1
             st.balloons()
-            st.markdown("<div class='status-box' style='color: green; background: #e8f5e9;'>Oikein! Hienoa!</div>", unsafe_allow_html=True)
+            st.markdown("<div class='status-box' style='color: green; background: #e8f5e9;'>Oikein!</div>", unsafe_allow_html=True)
             time.sleep(1.5)
             next_q()
             st.rerun()
         else:
-            st.markdown("<div class='status-box' style='color: red; background: #ffebee;'>Väärin! Korjaa vastaus tai käytä vihjettä.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='status-box' style='color: red; background: #ffebee;'>Väärin! Korjaa tai käytä vihjettä.</div>", unsafe_allow_html=True)
 
     if c2.button("Vihje"):
         if st.session_state.hint_letters < len(it['ans']):
@@ -176,4 +180,7 @@ elif st.session_state.data:
     if st.session_state.get('show_ans'):
         st.info(f"Oikea: {it['ans']}")
         if st.button("Seuraava →"):
-            st
+            st.session_state.total += 1
+            st.session_state.show_ans = False
+            next_q()
+            st.rerun()
